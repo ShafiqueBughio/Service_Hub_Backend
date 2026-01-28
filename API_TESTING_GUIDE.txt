@@ -1,0 +1,551 @@
+================================================================================
+                    SERVICELINK API TESTING GUIDE
+================================================================================
+
+base_url = http://localhost:3000/api/v1
+
+Note: Auth Required means you need to add header: Authorization: Bearer <access_token>
+
+================================================================================
+                            USER ENDPOINTS
+================================================================================
+
+1. REGISTER USER
+   Method: POST
+   URL: {{base_url}}/user/register
+   Auth Required: NO
+   Body:
+   {
+     "identifier": "dashti@gmail.com",
+     "password": "password@123",
+     "user_type": "USER",
+     "fcm_token": "optional_fcm_token"
+   }
+   
+   OR
+   
+   {
+     "identifier": "+1234567890",
+     "password": "password@123",
+     "user_type": "CONTRACTOR",
+     "fcm_token": "optional_fcm_token"
+   }
+   
+   Response includes:
+   {
+     "user": {...},
+     "otp": 123456,
+     "access_token": "jwt_access_token",
+     "refresh_token": "jwt_refresh_token"
+   }
+
+--------------------------------------------------------------------------------
+
+2. VERIFY OTP
+   Method: POST
+   URL: {{base_url}}/user/verify_otp
+   Auth Required: YES (use access_token from register)
+   Headers: Authorization: Bearer <access_token>
+   Body:
+   {
+     "otp": 123456,
+     "fcm_token": "optional_fcm_token"
+   }
+
+--------------------------------------------------------------------------------
+
+3. RESEND OTP
+   Method: POST
+   URL: {{base_url}}/user/resend_otp
+   Auth Required: NO
+   Body:
+   {
+     "identifier": "dashti@gmail.com"
+   }
+
+--------------------------------------------------------------------------------
+
+4. LOGIN
+   Method: POST
+   URL: {{base_url}}/user/login
+   Auth Required: NO
+   Body:
+   {
+     "identifier": "dashti@gmail.com",
+     "password": "password@123",
+     "fcm_token": "optional_fcm_token"
+   }
+
+--------------------------------------------------------------------------------
+
+5. SOCIAL LOGIN (Google/Apple)
+   Method: POST
+   URL: {{base_url}}/user/social_login
+   Auth Required: NO
+   Body:
+   {
+     "token": "google_or_apple_id_token",
+     "fcm_token": "optional_fcm_token",
+     "user_type": "USER",
+     "social_type": "GOOGLE"
+   }
+
+--------------------------------------------------------------------------------
+
+6. LOGOUT
+   Method: POST
+   URL: {{base_url}}/user/logout
+   Auth Required: YES
+   Body:
+   {
+     "refresh_token": "your_refresh_token"
+   }
+
+--------------------------------------------------------------------------------
+
+7. REFRESH TOKEN
+   Method: POST
+   URL: {{base_url}}/user/refresh_token
+   Auth Required: NO
+   Body:
+   {
+     "refresh_token": "your_refresh_token"
+   }
+
+--------------------------------------------------------------------------------
+
+8. FORGET PASSWORD
+   Method: POST
+   URL: {{base_url}}/user/forget_password
+   Auth Required: NO
+   Body:
+   {
+     "identifier": "dashti@gmail.com"
+   }
+   
+   Response:
+   {
+     "otp": 123456,
+     "access_token": "jwt_access_token"
+   }
+   
+   Note: Use this access_token in verify_otp and reset_password
+
+--------------------------------------------------------------------------------
+
+9. VERIFY OTP (For Password Reset)
+   Method: POST
+   URL: {{base_url}}/user/verify_otp
+   Auth Required: YES (use access_token from forget_password)
+   Headers: Authorization: Bearer <access_token>
+   Body:
+   {
+     "otp": 123456,
+     "fcm_token": "optional_fcm_token"
+   }
+   
+   Response:
+   {
+     "access_token": "jwt_access_token",
+     "refresh_token": "jwt_refresh_token",
+     "is_profile_completed": true/false
+   }
+   
+   Note: Use this access_token in reset_password
+
+--------------------------------------------------------------------------------
+
+10. RESET PASSWORD
+    Method: POST
+    URL: {{base_url}}/user/reset_password
+    Auth Required: YES (use access_token from verify_otp)
+    Headers: Authorization: Bearer <access_token>
+    Body:
+    {
+      "password": "newpassword@123"
+    }
+    
+    Note: Flow: forget_password → verify_otp → reset_password
+
+--------------------------------------------------------------------------------
+
+11. CHANGE PASSWORD
+    Method: POST
+    URL: {{base_url}}/user/change_password
+    Auth Required: YES
+    Body:
+    {
+      "password": "newpassword@123",
+      "old_password": "oldpassword@123"
+    }
+
+--------------------------------------------------------------------------------
+
+11. GET PROFILE
+    Method: GET
+    URL: {{base_url}}/user/profile
+    Auth Required: YES
+    Body: NONE
+
+--------------------------------------------------------------------------------
+
+12. UPDATE PROFILE
+    Method: PATCH
+    URL: {{base_url}}/user/profile
+    Auth Required: YES
+    Content-Type: multipart/form-data
+    Body (form-data):
+      first_name: "Dashti" (optional)
+      last_name: "Khan" (optional)
+      address: "123 Main St" (optional)
+      city: "New York" (optional)
+      state: "NY" (optional)
+      gender: "MALE" (optional)
+      profile_picture: [FILE] (optional)
+      about: "I am a professional" (optional, for CONTRACTOR)
+      services: ["Carpentry", "Plumbing"] (optional, for CONTRACTOR)
+      experiences: [{"company":"ABC Corp","job_type":"Full-time","designation":"Engineer","start_year":"2020","end_year":"2023"}] (optional, for CONTRACTOR)
+      service_areas: [{"location":"NYC","latitude":"40.7128","longitude":"-74.0060"}] (optional, for CONTRACTOR)
+
+--------------------------------------------------------------------------------
+
+13. CREATE USER PROFILE
+    Method: POST
+    URL: {{base_url}}/user/create_user_profile
+    Auth Required: YES
+    User Type: USER only
+    Content-Type: multipart/form-data
+    Body (form-data):
+      first_name: "Dashti" (required)
+      last_name: "Khan" (required)
+      address: "123 Main St" (required)
+      city: "New York" (required)
+      state: "NY" (required)
+      gender: "MALE" (required)
+      profile_picture: [FILE] (optional)
+
+--------------------------------------------------------------------------------
+
+14. CREATE CONTRACTOR PROFILE
+    Method: POST
+    URL: {{base_url}}/user/create_contractor_profile
+    Auth Required: YES
+    User Type: CONTRACTOR only
+    Body (JSON):
+    {
+      "first_name": "Dashti" (required),
+      "last_name": "Khan" (required),
+      "address": "New York" (required),
+      "city": "New York" (required),
+      "state": "NY" (required),
+      "contact_phone": "+1234567890" (required),
+      "gender": "MALE" (required),
+      "about": "Professional contractor" (optional),
+      "services": ["Carpentry", "Plumbing"] (required - at least one),
+      "experiences": [{"company":"ABC Corp","job_type":"Full-time","designation":"Engineer","start_year":"2020","end_year":"2023"}] (optional),
+      "service_areas": [{"location":"NYC","latitude":"40.7128","longitude":"-74.0060"}] (optional),
+      "business_license": "url_after_upload" (optional),
+      "certifications": ["url1", "url2"] (optional),
+      "portfolio_images": ["url1", "url2"] (optional)
+    }
+    
+    Note: Use presigned URLs to upload images/videos first, then use those URLs here
+
+--------------------------------------------------------------------------------
+
+15. UPDATE PROFILE PICTURE
+    Method: PATCH
+    URL: {{base_url}}/user/profile_picture
+    Auth Required: YES
+    Content-Type: multipart/form-data
+    Body (form-data):
+      profile_picture: [FILE] (required)
+
+--------------------------------------------------------------------------------
+
+16. GET USER ABOUT (ME)
+    Method: GET
+    URL: {{base_url}}/user/me?refresh_token=your_refresh_token
+    Auth Required: YES
+    Body: NONE
+
+--------------------------------------------------------------------------------
+
+17. UPDATE FCM TOKEN
+    Method: PATCH
+    URL: {{base_url}}/user/update_fcm
+    Auth Required: YES
+    Body:
+    {
+      "refresh_token": "your_refresh_token",
+      "fcm_token": "new_fcm_token"
+    }
+
+--------------------------------------------------------------------------------
+
+18. DELETE USER
+    Method: DELETE
+    URL: {{base_url}}/user/
+    Auth Required: YES
+    Body: NONE
+
+--------------------------------------------------------------------------------
+
+19. GET ALL USERS (Admin Only)
+    Method: GET
+    URL: {{base_url}}/user/
+    Auth Required: YES
+    Body: NONE
+
+================================================================================
+                          PUBLIC ENDPOINTS
+================================================================================
+
+20. GET REASONS
+    Method: GET
+    URL: {{base_url}}/public/reasons?type=USER
+    Auth Required: NO
+    Body: NONE
+    Query Params: type (optional)
+
+--------------------------------------------------------------------------------
+
+21. GET CATEGORIES
+    Method: GET
+    URL: {{base_url}}/public/categories
+    Auth Required: NO
+    Body: NONE
+
+--------------------------------------------------------------------------------
+
+22. GET PROFESSIONS
+    Method: GET
+    URL: {{base_url}}/public/professions
+    Auth Required: NO
+    Body: NONE
+
+--------------------------------------------------------------------------------
+
+23. GET NESTED PROFESSIONS
+    Method: GET
+    URL: {{base_url}}/public/professions/:profession_id
+    Auth Required: NO
+    Body: NONE
+    Example: {{base_url}}/public/professions/123
+
+================================================================================
+                        NOTIFICATIONS ENDPOINTS
+================================================================================
+
+24. GET ALL NOTIFICATIONS
+    Method: GET
+    URL: {{base_url}}/notifications/
+    Auth Required: YES
+    Body: NONE
+
+--------------------------------------------------------------------------------
+
+25. MARK ALL AS READ
+    Method: PATCH
+    URL: {{base_url}}/notifications/read_all
+    Auth Required: YES
+    Body: NONE
+
+--------------------------------------------------------------------------------
+
+26. MARK NOTIFICATION AS READ
+    Method: PATCH
+    URL: {{base_url}}/notifications/:notification_id
+    Auth Required: YES
+    Body: NONE
+    Example: {{base_url}}/notifications/123
+
+================================================================================
+                            CHAT ENDPOINTS
+================================================================================
+
+27. GET SINGLE CHAT
+    Method: GET
+    URL: {{base_url}}/chat/:chat_id
+    Auth Required: YES
+    Body: NONE
+    Example: {{base_url}}/chat/123
+
+================================================================================
+                      HELP AND FEEDBACK ENDPOINTS
+================================================================================
+
+28. SEND HELP AND FEEDBACK
+    Method: POST
+    URL: {{base_url}}/help_and_feedback/
+    Auth Required: YES
+    Content-Type: multipart/form-data
+    Body (form-data):
+      [Check validation schema for exact fields]
+
+--------------------------------------------------------------------------------
+
+29. GET HELP AND FEEDBACK
+    Method: GET
+    URL: {{base_url}}/help_and_feedback/
+    Auth Required: YES
+    Body: NONE
+
+================================================================================
+                         ABOUT APP ENDPOINTS
+================================================================================
+
+30. CREATE ABOUT APP (Admin Only)
+    Method: POST
+    URL: {{base_url}}/about-app/
+    Auth Required: YES (Admin)
+    Body:
+    {
+      [Check validation schema for exact fields]
+    }
+
+--------------------------------------------------------------------------------
+
+31. GET ABOUT APP
+    Method: GET
+    URL: {{base_url}}/about-app/
+    Auth Required: NO
+    Body: NONE
+
+================================================================================
+                       PRIVACY POLICY ENDPOINTS
+================================================================================
+
+32. CREATE PRIVACY POLICY (Admin Only)
+    Method: POST
+    URL: {{base_url}}/privacy_policy/
+    Auth Required: YES (Admin)
+    Body:
+    {
+      [Check validation schema for exact fields]
+    }
+
+--------------------------------------------------------------------------------
+
+33. GET PRIVACY POLICY
+    Method: GET
+    URL: {{base_url}}/privacy_policy/
+    Auth Required: NO
+    Body: NONE
+
+================================================================================
+                    TERMS AND CONDITIONS ENDPOINTS
+================================================================================
+
+34. CREATE TERMS AND CONDITIONS (Admin Only)
+    Method: POST
+    URL: {{base_url}}/terms_and_conditions/
+    Auth Required: YES (Admin)
+    Body:
+    {
+      [Check validation schema for exact fields]
+    }
+
+--------------------------------------------------------------------------------
+
+35. GET TERMS AND CONDITIONS
+    Method: GET
+    URL: {{base_url}}/terms_and_conditions/
+    Auth Required: NO
+    Body: NONE
+
+================================================================================
+                      PRESIGNED URL ENDPOINTS
+================================================================================
+
+35. GENERATE PRESIGNED UPLOAD URL
+    Method: POST
+    URL: {{base_url}}/presigned-url/upload-url
+    Auth Required: YES
+    Body:
+    {
+      "file_name": "profile.jpg",
+      "file_type": "image/jpeg",
+      "folder": "contractor-portfolio" (optional),
+      "expires_in": 3600 (optional, 60-3600 seconds, default: 3600)
+    }
+    
+    Response:
+    {
+      "upload_url": "https://s3.amazonaws.com/...",
+      "view_url": "https://s3.amazonaws.com/...",
+      "file_key": "uploads/1234567890_profile.jpg",
+      "file_name": "profile.jpg",
+      "expires_in": 3600
+    }
+    
+    Note: Use upload_url to upload file to S3, then use view_url or file_key in your profile
+
+--------------------------------------------------------------------------------
+
+36. GENERATE MULTIPLE PRESIGNED UPLOAD URLS
+    Method: POST
+    URL: {{base_url}}/presigned-url/upload-urls
+    Auth Required: YES
+    Body:
+    {
+      "files": [
+        {
+          "file_name": "image1.jpg",
+          "file_type": "image/jpeg",
+          "folder": "portfolio" (optional),
+          "expires_in": 3600 (optional)
+        },
+        {
+          "file_name": "video1.mp4",
+          "file_type": "video/mp4",
+          "folder": "portfolio" (optional)
+        }
+      ]
+    }
+    
+    Response:
+    {
+      "urls": [
+        {
+          "upload_url": "...",
+          "view_url": "...",
+          "file_key": "...",
+          "file_name": "...",
+          "expires_in": 3600
+        },
+        ...
+      ]
+    }
+
+================================================================================
+                              NOTES
+================================================================================
+
+- Password Requirements:
+  * Minimum 8 characters
+  * Maximum 16 characters
+  * Must contain at least one special character (@$!%*?&)
+
+- OTP:
+  * 6-digit numeric code
+  * Valid for 60 seconds
+
+- Authentication:
+  * Use Bearer token in Authorization header
+  * Format: Authorization: Bearer <access_token>
+
+- File Uploads:
+  * Use multipart/form-data for file uploads
+  * Supported: images and PDFs
+  * Max size: 100MB
+
+- Date Format:
+  * Use YYYY-MM-DD format (e.g., "1990-01-15")
+
+- User Types:
+  * USER: Regular user who can post jobs
+  * CONTRACTOR: Service provider
+  * ADMIN: Administrator
+
+================================================================================

@@ -1,0 +1,605 @@
+{
+  "project_name": "ServiceLink Backend API",
+  "version": "1.0.0",
+  "base_url": "http://localhost:9000/api/v1",
+  "description": "Complete API documentation for ServiceLink application supporting USER and CONTRACTOR roles",
+  
+  "authentication": {
+    "type": "Bearer Token (JWT)",
+    "header": "Authorization: <access_token>",
+    "token_refresh": "POST /api/v1/user/refresh_token"
+  },
+
+  "user_types": {
+    "USER": "Regular user who can post jobs and hire professionals",
+    "CONTRACTOR": "Service provider who can offer services",
+    "ADMIN": "Administrator"
+  },
+
+  "endpoints": {
+    "user": {
+      "base_path": "/api/v1/user",                
+      "description": "User authentication and profile management endpoints",
+      
+      "authentication": [
+        {
+          "method": "POST",
+          "path": "/register",
+          "description": "Register a new user (USER or CONTRACTOR)",
+          "auth_required": false,
+          "request_body": {
+            "identifier": "string (email or phone) - max 100 chars, required",
+            "password": "string - min 8 chars, max 16 chars, must contain special char (@$!%*?&), required",
+            "user_type": "enum - 'USER' | 'CONTRACTOR' | 'ADMIN', required"
+          },
+          "response_success": {
+            "status": 200,
+            "data": {
+              "user": {
+                "id": "uuid",
+                "email": "string or null",
+                "phone": "string or null",
+                "user_type": "USER | CONTRACTOR",
+                "is_email_verified": false,
+                "is_phone_verified": false,
+                "is_completed": false
+              },
+              "otp": "6-digit numeric code"
+            },
+            "message": "User created successfully. Please verify otp"
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/verify_otp",
+          "description": "Verify OTP sent during registration",
+          "auth_required": false,
+          "request_body": {
+            "identifier": "string (email or phone), required",
+            "otp": "number - 6 digit code (0-999999), required",
+            "fcm_token": "string - optional, for push notifications"
+          },
+          "response_success": {
+            "status": 200,
+            "data": {
+              "access_token": "JWT token",
+              "refresh_token": "JWT refresh token",
+              "is_profile_completed": false
+            },
+            "message": "User OTP verified."
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/resend_otp",
+          "description": "Resend OTP to user's email/phone",
+          "auth_required": false,
+          "request_body": {
+            "identifier": "string (email or phone), required"
+          },
+          "response_success": {
+            "status": 200,
+            "data": {
+              "otp": "6-digit numeric code"
+            },
+            "message": "OTP resent successfully. Please verify OTP"
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/login",
+          "description": "Login with email/phone and password",
+          "auth_required": false,
+          "request_body": {
+            "identifier": "string (email or phone), required",
+            "password": "string - min 8 chars, max 16 chars, must contain special char, required",
+            "fcm_token": "string - optional"
+          },
+          "response_success": {
+            "status": 200,
+            "data": {
+              "access_token": "JWT token",
+              "refresh_token": "JWT refresh token",
+              "is_profile_completed": true/false
+            },
+            "message": "Login Success."
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/social_login",
+          "description": "Login with Google or Apple",
+          "auth_required": false,
+          "request_body": {
+            "token": "string - Google/Apple ID token, required",
+            "fcm_token": "string - optional",
+            "user_type": "enum - 'USER' | 'CONTRACTOR', required",
+            "social_type": "enum - 'GOOGLE' | 'APPLE', required"
+          },
+          "response_success": {
+            "status": 200,
+            "data": {
+              "access_token": "JWT token",
+              "refresh_token": "JWT refresh token",
+              "is_profile_completed": true/false
+            },
+            "message": "User login successful."
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/logout",
+          "description": "Logout user and invalidate refresh token",
+          "auth_required": true,
+          "request_body": {
+            "refresh_token": "string - required"
+          },
+          "response_success": {
+            "status": 200,
+            "data": null,
+            "message": "User logout successful."
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/refresh_token",
+          "description": "Get new access token using refresh token",
+          "auth_required": false,
+          "request_body": {
+            "refresh_token": "string - required"
+          },
+          "response_success": {
+            "status": 200,
+            "data": {
+              "access_token": "new JWT token"
+            },
+            "message": "New Access Token generated successfully."
+          }
+        }
+      ],
+
+      "password_management": [
+        {
+          "method": "POST",
+          "path": "/forget_password",
+          "description": "Request password reset OTP",
+          "auth_required": false,
+          "request_body": {
+            "identifier": "string (email or phone), required"
+          },
+          "response_success": {
+            "status": 200,
+            "data": {
+              "otp": "6-digit numeric code"
+            },
+            "message": "OTP sent successfully. Please verify OTP"
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/reset_password",
+          "description": "Reset password after forget password (requires OTP verification)",
+          "auth_required": true,
+          "request_body": {
+            "password": "string - min 8 chars, max 16 chars, must contain special char, required"
+          },
+          "response_success": {
+            "status": 200,
+            "data": null,
+            "message": "Password reset successfully"
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/change_password",
+          "description": "Change password (requires old password)",
+          "auth_required": true,
+          "request_body": {
+            "password": "string - new password, required",
+            "old_password": "string - current password, required"
+          },
+          "response_success": {
+            "status": 200,
+            "data": null,
+            "message": "Password changed successfully"
+          }
+        }
+      ],
+
+      "profile_management": [
+        {
+          "method": "GET",
+          "path": "/profile",
+          "description": "Get current user's complete profile (works for both USER and CONTRACTOR)",
+          "auth_required": true,
+          "request_body": {},
+          "response_success": {
+            "status": 200,
+            "data": {
+              "id": "uuid",
+              "email": "string",
+              "phone": "string",
+              "user_type": "USER | CONTRACTOR",
+              "is_email_verified": true,
+              "is_phone_verified": true,
+              "is_completed": true,
+              "user_details": {
+                "id": "uuid",
+                "first_name": "string",
+                "last_name": "string",
+                "date_of_birth": "date",
+                "location": "string",
+                "city": "string",
+                "state": "string",
+                "contact_email": "string",
+                "contact_phone": "string",
+                "profile_picture": "string (URL)",
+                "latitude": "string",
+                "longitude": "string",
+                "gender": "MALE | FEMALE | OTHER",
+                "address": "string"
+              },
+              "contractor_profile": {
+                "id": "uuid",
+                "about": "string",
+                "contractor_experiences": [
+                  {
+                    "id": "uuid",
+                    "company": "string",
+                    "job_type": "string",
+                    "designation": "string",
+                    "start_year": "string",
+                    "end_year": "string"
+                  }
+                ],
+                "contractor_documents": [
+                  {
+                    "id": "uuid",
+                    "document_type": "BUSINESS_LICENSE | CERTIFICATION",
+                    "document_url": "string (URL)"
+                  }
+                ],
+                "contractor_portfolios": [
+                  {
+                    "id": "uuid",
+                    "image_url": "string (URL)"
+                  }
+                ],
+                "contractor_services": [
+                  {
+                    "id": "uuid",
+                    "service_name": "string"
+                  }
+                ],
+                "contractor_service_areas": [
+                  {
+                    "id": "uuid",
+                    "location": "string",
+                    "latitude": "string",
+                    "longitude": "string"
+                  }
+                ]
+              }
+            },
+            "message": "Profile fetched successfully."
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/profile",
+          "description": "Update user profile (works for both USER and CONTRACTOR, supports partial updates)",
+          "auth_required": true,
+          "content_type": "multipart/form-data",
+          "request_body": {
+            "first_name": "string - optional",
+            "last_name": "string - optional",
+            "location": "string - optional",
+            "date_of_birth": "date - optional",
+            "latitude": "string - optional",
+            "longitude": "string - optional",
+            "city": "string - optional",
+            "state": "string - optional",
+            "contact_email": "string (email) - optional",
+            "contact_phone": "string - optional",
+            "gender": "enum - 'MALE' | 'FEMALE' | 'OTHER' - optional",
+            "address": "string - optional",
+            "profile_picture": "file - optional (multipart)",
+            "about": "string - optional (CONTRACTOR only)",
+            "experiences": [
+              {
+                "company": "string",
+                "job_type": "string",
+                "designation": "string",
+                "start_year": "string",
+                "end_year": "string"
+              }
+            ],
+            "services": ["string array - optional (CONTRACTOR only)"],
+            "service_areas": [
+              {
+                "location": "string",
+                "latitude": "string",
+                "longitude": "string"
+              }
+            ]
+          },
+          "response_success": {
+            "status": 200,
+            "data": null,
+            "message": "Your profile updated successfully."
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/create_user_profile",
+          "description": "Create profile for USER type (Step 1/3, 2/3, 3/3)",
+          "auth_required": true,
+          "user_type_required": "USER",
+          "content_type": "multipart/form-data",
+          "request_body": {
+            "first_name": "string - required",
+            "last_name": "string - required",
+            "location": "string - required",
+            "date_of_birth": "date - required (YYYY-MM-DD)",
+            "latitude": "string - required",
+            "longitude": "string - required",
+            "city": "string - required",
+            "state": "string - required",
+            "contact_email": "string (email) - optional",
+            "contact_phone": "string - required",
+            "gender": "enum - 'MALE' | 'FEMALE' | 'OTHER' - optional",
+            "address": "string - optional",
+            "profile_picture": "file - optional (multipart)"
+          },
+          "response_success": {
+            "status": 200,
+            "data": null,
+            "message": "Your profile created successfully."
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/create_contractor_profile",
+          "description": "Create complete profile for CONTRACTOR type (all 3 steps)",
+          "auth_required": true,
+          "user_type_required": "CONTRACTOR",
+          "content_type": "multipart/form-data",
+          "request_body": {
+            "first_name": "string - required",
+            "last_name": "string - required",
+            "location": "string - required",
+            "date_of_birth": "date - required",
+            "latitude": "string - required",
+            "longitude": "string - required",
+            "city": "string - required",
+            "state": "string - required",
+            "contact_email": "string (email) - optional",
+            "contact_phone": "string - required",
+            "gender": "enum - 'MALE' | 'FEMALE' | 'OTHER' - optional",
+            "address": "string - optional",
+            "profile_picture": "file - optional",
+            "about": "string - optional",
+            "experiences": [
+              {
+                "company": "string",
+                "job_type": "string",
+                "designation": "string",
+                "start_year": "string",
+                "end_year": "string"
+              }
+            ],
+            "services": ["string array - e.g. ['Carpentry', 'Plumbing']"],
+            "service_areas": [
+              {
+                "location": "string",
+                "latitude": "string",
+                "longitude": "string"
+              }
+            ],
+            "business_license": "string (URL) - after uploading PDF",
+            "certifications": ["string array - URLs after uploading PDFs"],
+            "portfolio_images": ["string array - URLs after uploading images"]
+          },
+          "response_success": {
+            "status": 200,
+            "data": null,
+            "message": "Your profile created successfully."
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/profile_picture",
+          "description": "Update only profile picture",
+          "auth_required": true,
+          "content_type": "multipart/form-data",
+          "request_body": {
+            "profile_picture": "file - required (multipart)"
+          },
+          "response_success": {
+            "status": 200,
+            "data": null,
+            "message": "Your profile updated successfully."
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/me",
+          "description": "Get current user's about information",
+          "auth_required": true,
+          "query_params": {
+            "refresh_token": "string - required"
+          },
+          "response_success": {
+            "status": 200,
+            "data": {
+              "user_id": "uuid",
+              "email": "string",
+              "push_notification": true/false,
+              "first_name": "string",
+              "last_name": "string",
+              "date_of_birth": "date",
+              "location": "string",
+              "latitude": "string",
+              "longitude": "string",
+              "contact_phone": "string",
+              "city": "string",
+              "state": "string",
+              "profile_picture": "string (URL)",
+              "age": "number"
+            },
+            "message": "About Fetched Successfully"
+          }
+        }
+      ],
+
+      "other_endpoints": [
+        {
+          "method": "DELETE",
+          "path": "/",
+          "description": "Delete current user account",
+          "auth_required": true,
+          "response_success": {
+            "status": 200,
+            "data": null,
+            "message": "User deleted successfully."
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/",
+          "description": "Get all users (admin only)",
+          "auth_required": true,
+          "response_success": {
+            "status": 200,
+            "data": {
+              "users": []
+            },
+            "message": "All users."
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/update_fcm",
+          "description": "Update FCM token for push notifications",
+          "auth_required": true,
+          "request_body": {
+            "refresh_token": "string - required",
+            "fcm_token": "string - required"
+          },
+          "response_success": {
+            "status": 200,
+            "data": null,
+            "message": "Successfully updated user fcm"
+          }
+        }
+      ]
+    },
+
+    "notifications": {
+      "base_path": "/api/v1/notifications",
+      "description": "Push notification management endpoints"
+    },
+
+    "chat": {
+      "base_path": "/api/v1/chat",
+      "description": "In-app chat functionality endpoints"
+    },
+
+    "public": {
+      "base_path": "/api/v1/public",
+      "description": "Public endpoints for app information"
+    },
+
+    "help_and_feedback": {
+      "base_path": "/api/v1/help_and_feedback",
+      "description": "Help and feedback submission endpoints"
+    },
+
+    "privacy_policy": {
+      "base_path": "/api/v1/privacy_policy",
+      "description": "Privacy policy endpoints"
+    },
+
+    "terms_and_conditions": {
+      "base_path": "/api/v1/terms_and_conditions",
+      "description": "Terms and conditions endpoints"
+    },
+
+    "about_app": {
+      "base_path": "/api/v1/about-app",
+      "description": "About app information endpoints"
+    }
+  },
+
+  "error_responses": {
+    "400": {
+      "code": "BAD_REQUEST",
+      "message": "Invalid request data or validation failed"
+    },
+    "401": {
+      "code": "UNAUTHORIZED",
+      "message": "Authentication required or invalid token"
+    },
+    "403": {
+      "code": "FORBIDDEN",
+      "message": "Access denied"
+    },
+    "404": {
+      "code": "NOT_FOUND",
+      "message": "Resource not found"
+    },
+    "409": {
+      "code": "CONFLICT",
+      "message": "Resource already exists"
+    },
+    "500": {
+      "code": "INTERNAL_SERVER_ERROR",
+      "message": "Server error"
+    }
+  },
+
+  "common_response_format": {
+    "status": {
+      "code": 200,
+      "message": "Success"
+    },
+    "data": {},
+    "message": "Operation successful"
+  },
+
+  "file_upload": {
+    "supported_types": ["image/*", "application/pdf"],
+    "max_size": "100MB",
+    "upload_to": "AWS S3",
+    "fields": {
+      "profile_picture": "single image file",
+      "business_license": "PDF file",
+      "certifications": "PDF files (multiple)",
+      "portfolio_images": "Image files (multiple)"
+    }
+  },
+
+  "password_requirements": {
+    "min_length": 8,
+    "max_length": 16,
+    "must_contain": "At least one special character (@$!%*?&)",
+    "pattern": "^(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$"
+  },
+
+  "otp": {
+    "length": 6,
+    "type": "numeric",
+    "expiration": "60 seconds",
+    "format": "000000 to 999999"
+  },
+
+  "notes": [
+    "All dates should be in ISO 8601 format (YYYY-MM-DD)",
+    "All file uploads use multipart/form-data",
+    "Access tokens expire - use refresh_token endpoint to get new token",
+    "Profile creation is a one-time process - cannot be done twice",
+    "Contractor profile includes additional fields: experiences, services, service areas, documents, portfolio",
+    "User type is set during registration and cannot be changed",
+    "Email and phone verification is required before login"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "@configs/*": ["src/configs/*"],
+      "@constants/*": ["src/constants/*"],
+      "@api/*": ["src/api/*"],
+      "@v1_helpers/*": ["src/api/v1/helpers/*"],
+      "@v1_services/*": ["src/api/v1/services/*"],
+      "@v1_validations/*": ["src/api/v1/validations/*"],
+      "@v1_controllers/*": ["src/api/v1/controllers/*"],
+      "@v1_middlewares/*": ["src/api/v1/middlewares/*"]
+    }
+  },
+  "include": ["src/**/*", "scripts", "test.js"]
+}

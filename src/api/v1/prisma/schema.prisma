@@ -1,0 +1,287 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum user_type {
+  USER
+  CONTRACTOR
+  ADMIN
+}
+
+enum Mute_duration {
+  EIGHT_HOURS
+  ONE_WEEK
+  ALWAYS
+}
+
+enum screen_name {
+  USER_REQUESTS
+  USER_INVITES
+  JOB
+  TRANSACTION_DEBIT
+  TRANSACTION_CREDIT
+}
+
+// user start
+model users {
+  id          String  @id @default(uuid())
+  referred_by String?
+
+  email                String?  @db.VarChar(255)
+  phone                String?  @db.VarChar(255)
+  mute_notifications   Boolean? @default(false)
+  social_account_token String?  @db.VarChar(255)
+  is_email_verified    Boolean  @default(false)
+  is_phone_verified    Boolean  @default(false)
+  is_completed         Boolean  @default(false)
+  is_subscribed        Boolean  @default(false)
+  is_blocked           Boolean? @default(false)
+  is_approved          Boolean? @default(true)
+
+  user_type user_type?
+
+  user_secrets           user_secrets?
+  user_details           user_details?
+  contractor_profile     contractor_profile?
+  user_sessions          user_sessions[]
+  help_and_feedback      help_and_feedback[] @relation("senders")
+  notification_receivers notifications[]     @relation("notification_receivers")
+  blocked_user           block_user[]        @relation("blocked_user")
+  blocked_by             block_user[]        @relation("blocked_by")
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}
+
+model user_details {
+  id      String @id @default(uuid())
+  user_id String @unique
+
+  first_name      String?
+  last_name       String?
+  date_of_birth   DateTime?
+  location        String?   @db.VarChar(255)
+  city            String?
+  state           String?
+  contact_email   String?
+  contact_phone   String?
+  profile_picture String?   @db.VarChar(255)
+  latitude        String?
+  longitude       String?
+  gender          String?   @db.VarChar(50)
+  address         String?   @db.VarChar(500)
+
+  users users? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}
+
+model user_secrets {
+  id      String @id @default(uuid())
+  user_id String @unique
+
+  otp            String?  @db.VarChar(255)
+  password       String?  @db.VarChar(255)
+  otp_expiration DateTime @db.DateTime()
+
+  users users? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}
+
+model user_sessions {
+  id      String  @id @default(uuid())
+  user_id String?
+
+  fcm_token         String? @db.LongText
+  refresh_token     String  @unique @db.VarChar(255)
+  mute_notification Boolean @default(true)
+
+  users users? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}
+
+// chat and notifications start
+
+// public end
+
+// contractor start
+model contractor_profile {
+  id      String @id @default(uuid())
+  user_id String @unique
+
+  about String? @db.LongText
+
+  contractor_experiences   contractor_experience[]
+  contractor_documents     contractor_documents[]
+  contractor_portfolios    contractor_portfolio[]
+  contractor_services      contractor_services[]
+  contractor_service_areas contractor_service_areas[]
+
+  users users? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}
+
+model contractor_experience {
+  id                    String @id @default(uuid())
+  contractor_profile_id String
+
+  company     String? @db.VarChar(255)
+  job_type    String? @db.VarChar(100)
+  designation String? @db.VarChar(255)
+  start_year  String? @db.VarChar(10)
+  end_year    String? @db.VarChar(10)
+
+  contractor_profile contractor_profile? @relation(fields: [contractor_profile_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}
+
+model contractor_documents {
+  id                    String @id @default(uuid())
+  contractor_profile_id String
+
+  document_type String  @db.VarChar(100) // BUSINESS_LICENSE, CERTIFICATION
+  document_url  String? @db.VarChar(500)
+
+  contractor_profile contractor_profile? @relation(fields: [contractor_profile_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}
+
+model contractor_portfolio {
+  id                    String @id @default(uuid())
+  contractor_profile_id String
+
+  image_url String? @db.VarChar(500)
+
+  contractor_profile contractor_profile? @relation(fields: [contractor_profile_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}
+
+model contractor_services {
+  id                    String @id @default(uuid())
+  contractor_profile_id String
+
+  service_name String? @db.VarChar(255)
+
+  contractor_profile contractor_profile? @relation(fields: [contractor_profile_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}
+
+model contractor_service_areas {
+  id                    String @id @default(uuid())
+  contractor_profile_id String
+
+  location  String? @db.VarChar(255)
+  latitude  String?
+  longitude String?
+
+  contractor_profile contractor_profile? @relation(fields: [contractor_profile_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}
+
+// contractor end 
+model notifications {
+  id String @id @default(uuid())
+
+  title        String?      @db.VarChar(255)
+  message      String?      @db.LongText
+  recipient_id String?
+  metadata     String?      @db.VarChar(255)
+  is_read      Boolean      @default(false)
+  is_admin     Boolean      @default(false)
+  screen_name  screen_name?
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+
+  notification_receivers users? @relation(fields: [recipient_id], name: "notification_receivers", references: [id], onDelete: Cascade)
+}
+
+model block_user {
+  id              String  @id @default(uuid())
+  blocked_user_id String?
+  blocked_by_id   String?
+
+  blocked_user users? @relation(fields: [blocked_user_id], name: "blocked_user", references: [id], onDelete: Cascade)
+  blocked_by   users? @relation(fields: [blocked_by_id], name: "blocked_by", references: [id], onDelete: Cascade)
+
+  created_at DateTime  @default(now()) @db.Timestamp(0)
+  updated_at DateTime? @updatedAt
+}
+
+// chat and notification end
+
+// public start
+model terms_and_conditions {
+  id String @id @default(uuid())
+
+  description String? @db.LongText
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}
+
+model privacy_policy {
+  id String @id @default(uuid())
+
+  description String? @db.LongText
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}
+
+model about_app {
+  id String @id @default(uuid())
+
+  description String? @db.LongText
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}
+
+model help_and_feedback {
+  id String @id @default(uuid())
+
+  subject   String? @db.VarChar(1000)
+  message   String? @db.LongText
+  sender_id String
+
+  help_and_feedback_images help_and_feedback_images[]
+  senders                  users                      @relation(fields: [sender_id], name: "senders", references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}
+
+model help_and_feedback_images {
+  id                   String @id @default(uuid())
+  help_and_feedback_id String
+
+  review_image String? @db.VarChar(255)
+
+  help_and_feedback help_and_feedback? @relation(fields: [help_and_feedback_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+}

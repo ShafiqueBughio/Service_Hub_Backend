@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stripe Payment</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 500px;
+            margin: auto;
+        }
+        #payment-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        #payment-form button {
+            padding: 10px;
+            font-size: 16px;
+            background-color: #5469d4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #payment-form button:hover {
+            background-color: #4356b4;
+        }
+        #message {
+            margin-top: 20px;
+            color: green;
+        }
+        #error {
+            margin-top: 20px;
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stripe Payment</h1>
+    <form id="payment-form">
+        <div id="card-element"><!-- Stripe.js injects the Card Element here --></div>
+        <button type="submit">Pay</button>
+    </form>
+    <div id="message"></div>
+    <div id="error"></div>
+
+    <script>
+        // Retrieve the client secret from the URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const clientSecret = urlParams.get('client_secret');
+
+        if (!clientSecret) {
+            document.getElementById('error').textContent = 'Error: Missing client_secret in the URL.';
+            throw new Error('Missing client_secret');
+        }
+
+        const stripe = Stripe('pk_test_51Q5Qo3COooK1jUT3eDq4GfwDaWj1poPVKM3fC7aUr0GppsWaHwVM4PSQowX6GbEA7cTUloh9g7TjjCRCKJ7qhbBV00lG4mWbuY'); // Replace with your Stripe publishable key
+        const elements = stripe.elements();
+        const cardElement = elements.create('card');
+
+        cardElement.mount('#card-element');
+
+        const form = document.getElementById('payment-form');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const { paymentIntent, error } = await stripe.confirmCardPayment(clientSecret, {
+                payment_method: {
+                    card: cardElement,
+                },
+            });
+
+            if (error) {
+                // Display error message
+                document.getElementById('error').textContent = error.message;
+            } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+                // Display success message
+                document.getElementById('message').textContent = 'Payment succeeded!';
+            }
+        });
+    </script>
+</body>
+</html>
