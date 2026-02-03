@@ -1,0 +1,376 @@
+================================================================================
+                    JOB API GUIDE (Postman)
+================================================================================
+
+base_url = http://localhost:3000/api/v1
+
+All job endpoints require: Authorization: Bearer <access_token>
+
+================================================================================
+KONSI API KIS KE LIYE (Who uses which API)
+================================================================================
+
+USER (Job Owner – jo job post karta hai):
+  1. CREATE JOB          POST   /job/create
+  2. GET MY JOBS         GET    /job/my-jobs
+  3. GET JOB BY ID      GET    /job/:jobId
+  4. UPDATE JOB          PATCH  /job/:jobId
+  5. DELETE JOB         DELETE /job/:jobId
+  8. GET BIDS BY JOB    GET    /job/:jobId/bids   (sari bids dekhne)
+  9. ACCEPT BID         POST   /job/:jobId/bid/:bidId/accept
+ 10. MARK AS COMPLETED  PATCH  /job/:jobId/mark-completed
+ 11. GIVE REVIEW        POST   /job/:jobId/review   (completed job pe contractor ko review)
+ 12. GET REVIEW        GET    /job/:jobId/review
+
+CONTRACTOR (jo bid lagata hai):
+  3. GET JOB BY ID      GET    /job/:jobId        (job detail + Place Your Bid)
+  6. LIST JOBS         GET    /job/list         (Latest Jobs – sab open jobs)
+  6b. GET MY BIDS      GET    /job/my-bids      (My Bids – tab=pending|active|past, type=REGULAR|LIVE)
+  7. PLACE BID         POST   /job/:jobId/bid
+  8. GET BIDS BY JOB   GET    /job/:jobId/bids   (Auction Members list)
+
+DONO (User + Contractor dono use kar sakte):
+  3. GET JOB BY ID      GET    /job/:jobId
+  8. GET BIDS BY JOB    GET    /job/:jobId/bids
+
+================================================================================
+1. CREATE JOB  [ USER only – Job owner ]
+================================================================================
+
+POST {{base_url}}/job/create
+
+Headers:
+  Authorization: Bearer <access_token>
+  Content-Type: application/json
+
+Body (raw JSON):
+
+{
+  "job_type": "REGULAR",
+  "title": "Lorem Ipsum Project",
+  "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+  "expire_days": 3,
+  "min_budget": 5000,
+  "max_budget": 10000,
+  "timeline": "Within 2 Months",
+  "location": "20 Cooper Square, NY, USA",
+  "provider_preferences": ["Plumbing", "Carpentry", "Painting"],
+  "attachments": [
+    {
+      "type": "pdf",
+      "url": "https://your-bucket.s3.region.amazonaws.com/jobs/123_file.pdf"
+    },
+    {
+      "type": "image",
+      "url": "https://your-bucket.s3.region.amazonaws.com/jobs/123_photo.jpg"
+    }
+  ]
+}
+
+Notes:
+- job_type: optional. Auto: max_budget <= 2000 = REGULAR, 2001+ = LIVE
+- expire_days: 1, 3, 5, or 7
+- min_budget must be <= max_budget
+- provider_preferences: optional array of strings (e.g. skills/categories)
+- attachments: optional; use presigned URLs from /presigned-url/upload-url
+- invited_contractor_id: optional (UUID). Jab user completed job se "Request Service" kare aur usi contractor ko dubara kaam dena ho – yahan wo contractor ka user id bhejo. Ye job us contractor k "Pending" / "Requests for me" me dikhegi.
+
+================================================================================
+2. GET MY JOBS (My Projects list)  [ USER only – Job owner ]
+================================================================================
+
+GET {{base_url}}/job/my-jobs
+
+Query (optional) – My Projects tabs:
+  tab = pending   → jobs jisme bid abhi accept nahi hui (OPEN)
+  tab = active    → jobs jisme bid accept ho chuki, completed nahi
+  tab = completed → jobs jo user ne mark as completed kar diye
+
+Example: GET {{base_url}}/job/my-jobs?tab=pending
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Body: none
+
+Response: jobs with _count.bids, accepted_bid (contractor + quote_price, timeline_estimate) when applicable.
+
+================================================================================
+3. GET JOB BY ID  [ USER + CONTRACTOR dono ]
+================================================================================
+
+GET {{base_url}}/job/:jobId
+
+Example: GET {{base_url}}/job/164964
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Body: none
+
+================================================================================
+4. UPDATE JOB  [ USER only – Job owner ]
+================================================================================
+
+PATCH {{base_url}}/job/:jobId
+
+Example: PATCH {{base_url}}/job/164964
+
+Headers:
+  Authorization: Bearer <access_token>
+  Content-Type: application/json
+
+Body (raw JSON) - all fields optional:
+
+{
+  "job_type": "LIVE",
+  "title": "Updated Project Title",
+  "description": "Updated description.",
+  "expire_days": 5,
+  "min_budget": 6000,
+  "max_budget": 12000,
+  "timeline": "Within 1 Month",
+  "location": "New Address, NY, USA",
+  "provider_preferences": ["Plumbing", "Carpentry", "Painting", "Electrical"],
+  "attachments": [
+    {
+      "type": "image",
+      "url": "https://your-bucket.s3.region.amazonaws.com/jobs/new_photo.jpg"
+    }
+  ],
+  "status": "OPEN"
+}
+
+Notes:
+- Only send fields you want to update.
+- status: "OPEN" or "CLOSED"
+- New attachments are appended to existing ones.
+
+================================================================================
+5. DELETE JOB  [ USER only – Job owner ]
+================================================================================
+
+DELETE {{base_url}}/job/:jobId
+
+Example: DELETE {{base_url}}/job/164964
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Body: none
+
+================================================================================
+QUICK REFERENCE (JSON bodies only)
+================================================================================
+
+Create Job:
+{"job_type":"REGULAR","title":"My Project","description":"Project description here","expire_days":3,"min_budget":5000,"max_budget":10000,"timeline":"2 Months","location":"NY, USA","provider_preferences":["Plumbing","Carpentry"],"attachments":[{"type":"pdf","url":"https://example.com/file.pdf"}]}
+
+Update Job (partial):
+{"title":"Updated Title","min_budget":6000,"max_budget":11000}
+
+================================================================================
+6. LIST JOBS (Latest Jobs / Pending)  [ CONTRACTOR only ]
+================================================================================
+
+GET {{base_url}}/job/list
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Query (optional):
+  search       = string (title/description)
+  location     = string
+  job_type     = REGULAR | LIVE
+  limit        = number (default 20)
+  offset       = number (default 0)
+  invited_only = true  → sirf woh jobs jahan is contractor ko invite kiya (user ne "Request Service" se isi ko bheja). Contractor k "Pending" / "Requests for me" ke liye use karo.
+
+Body: none
+
+Response: har job me requested_for_you (boolean) – true jab job user ne is contractor ke liye "Request Service" se create ki ho (invited_contractor_id = current contractor).
+
+================================================================================
+6b. GET MY BIDS (My Bids – Regular / Live, Pending / Active / Past)  [ CONTRACTOR only ]
+================================================================================
+
+GET {{base_url}}/job/my-bids
+
+Query (optional) – My Bids tabs:
+  tab = pending  → bid PENDING (user ne accept/reject nahi kiya)
+  tab = active   → bid ACCEPTED, project chal raha (completed nahi)
+  tab = past     → Rejected ya Completed
+  type = REGULAR | LIVE (Regular Bid / Live Bid filter)
+
+Examples:
+  GET {{base_url}}/job/my-bids?tab=pending&type=REGULAR   – Regular, Pending
+  GET {{base_url}}/job/my-bids?tab=active&type=LIVE        – Live, Active
+  GET {{base_url}}/job/my-bids?tab=past                    – Saari Past
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Body: none
+
+Response: Array of bids; har bid me job (title, job_type, user/client, etc.) include hai.
+Full flow: CONTRACTOR_FLOW.txt dekho.
+
+================================================================================
+7. PLACE BID  [ CONTRACTOR only ]
+================================================================================
+
+POST {{base_url}}/job/:jobId/bid
+
+Example: POST {{base_url}}/job/550e8400-e29b-41d4-a716-446655440000/bid
+
+Headers:
+  Authorization: Bearer <access_token>
+  Content-Type: application/json
+
+Body (raw JSON):
+
+{
+  "quote_price": 6000,
+  "timeline_estimate": "2 weeks",
+  "notes": "Optional notes here...",
+  "proposal_documents": [
+    "https://your-bucket.s3.region.amazonaws.com/proposals/abc.pdf"
+  ]
+}
+
+Insert kya karna hai:
+  quote_price         – number, required, >= 0 (quotation price)
+  timeline_estimate   – string, optional (e.g. "2 weeks", "Within 1 Month")
+  notes               – string, optional (max 5000 chars)
+  proposal_documents  – array of strings (URLs after presigned upload), optional
+
+Minimal body (required only):
+{"quote_price": 5500}
+
+================================================================================
+8. GET BIDS BY JOB (Auction Members list)  [ USER + CONTRACTOR dono ]
+================================================================================
+
+GET {{base_url}}/job/:jobId/bids
+
+Example: GET {{base_url}}/job/550e8400-e29b-41d4-a716-446655440000/bids
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Body: none
+
+Params: jobId (UUID) in URL.
+
+Response: { "job": {...}, "bids": [...] }
+
+================================================================================
+9. ACCEPT BID  [ USER only – Job owner, sirf ek bid accept ]
+================================================================================
+
+POST {{base_url}}/job/:jobId/bid/:bidId/accept
+
+Example: POST {{base_url}}/job/550e8400-e29b-41d4-a716-446655440000/bid/660e8400-e29b-41d4-a716-446655440001/accept
+
+Headers:
+  Authorization: Bearer <access_token>
+  Content-Type: application/json
+
+Body (optional) – User contractor se chat me price/timeline final karke ye values bhej sakta hai (modal: Price + Timeline → Continue):
+  {
+    "final_quote_price": 1500,
+    "final_timeline_estimate": "2 weeks"
+  }
+  - Dono optional. Agar bheje to accepted bid ki quote_price aur timeline_estimate inhi se update ho jati hain (order finalized values ke sath).
+
+Params: jobId (UUID), bidId (UUID) – dono URL me.
+
+================================================================================
+10. MARK AS COMPLETED  [ USER only – Job owner ]
+================================================================================
+
+PATCH {{base_url}}/job/:jobId/mark-completed
+
+Example: PATCH {{base_url}}/job/550e8400-e29b-41d4-a716-446655440000/mark-completed
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Body: none
+
+Params: jobId (UUID) in URL.
+
+- Sirf job owner, sirf jisme bid accept ho chuki (accepted_bid_id set).
+- Job completed_at set ho jata hai; My Projects me "Completed" tab me aayega.
+
+================================================================================
+11. GIVE REVIEW  [ USER only – Job owner, completed job ]
+================================================================================
+
+User completed job pe contractor ko review de sakta hai (Give Review screen: stars + Write a review).
+
+POST {{base_url}}/job/:jobId/review
+
+Headers:
+  Authorization: Bearer <access_token>
+  Content-Type: application/json
+
+Body:
+  {
+    "rating": 5,
+    "review_text": "Great work, very professional."
+  }
+
+- rating: 1-5 (required)
+- review_text: optional, max 2000 chars
+- Sirf job owner; job completed (mark-completed) honi chahiye; sirf ek review per job.
+
+================================================================================
+12. GET REVIEW  [ Job ki review dekhne ]
+================================================================================
+
+GET {{base_url}}/job/:jobId/review
+
+Headers: Authorization: Bearer <access_token>
+
+Body: none
+
+- Job ki review (agar di hai) return hoti hai; nahi to null/data empty.
+
+================================================================================
+QUICK REFERENCE (JSON bodies only)
+================================================================================
+
+Create Job:
+{"job_type":"REGULAR","title":"My Project","description":"Project description here","expire_days":3,"min_budget":5000,"max_budget":10000,"timeline":"2 Months","location":"NY, USA","provider_preferences":["Plumbing","Carpentry"],"attachments":[{"type":"pdf","url":"https://example.com/file.pdf"}]}
+
+Place Bid:
+{"quote_price":6000,"timeline_estimate":"2 weeks","notes":"Optional notes","proposal_documents":["https://example.com/proposal.pdf"]}
+
+Place Bid (minimal):
+{"quote_price":5500}
+
+Update Job (partial):
+{"title":"Updated Title","min_budget":6000,"max_budget":11000}
+
+================================================================================
+VALIDATION RULES
+================================================================================
+
+- job_type: REGULAR | LIVE (optional; auto: <=2000 REGULAR, 2001+ LIVE)
+- title: 1-255 chars (required on create)
+- description: min 1 char (required on create)
+- expire_days: 1 | 3 | 5 | 7 (required on create)
+- min_budget, max_budget: numbers, min_budget <= max_budget
+- timeline: max 500 chars (optional)
+- location: max 500 chars (optional)
+- provider_preferences: array of strings, max 100 chars each (optional)
+- attachments: array of { type?, url } (optional); use presigned URLs for files
+
+Bid:
+- quote_price: number, required, >= 0
+- timeline_estimate: string, optional, max 255
+- notes: string, optional, max 5000
+- proposal_documents: array of strings (URLs), optional
+
+================================================================================

@@ -53,6 +53,11 @@ model users {
   notification_receivers notifications[]     @relation("notification_receivers")
   blocked_user           block_user[]        @relation("blocked_user")
   blocked_by             block_user[]        @relation("blocked_by")
+  jobs                   Job[]
+  jobs_invited           Job[]  @relation("JobInvitedContractor") // Request Service – in contractor k pending me
+  bids                   Bid[]  // bids placed as contractor
+  reviews_given          Review[] @relation("reviews_given")
+  reviews_received       Review[] @relation("reviews_received")
 
   created_at DateTime @default(now()) @db.Timestamp(0)
   updated_at DateTime @updatedAt
@@ -70,7 +75,7 @@ model user_details {
   state           String?
   contact_email   String?
   contact_phone   String?
-  profile_picture String?   @db.VarChar(255)
+  profile_picture String?   @db.Text
   latitude        String?
   longitude       String?
   gender          String?   @db.VarChar(50)
@@ -284,4 +289,106 @@ model help_and_feedback_images {
 
   created_at DateTime @default(now()) @db.Timestamp(0)
   updated_at DateTime @updatedAt
+}
+
+enum JobType {
+  REGULAR
+  LIVE
+}
+
+enum JobStatus {
+  OPEN
+  CLOSED
+}
+
+enum BidStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model Job {
+  id      String @id @default(uuid())
+  user_id String
+
+  job_type    JobType
+  title       String
+  description String
+
+  min_budget Float?
+  max_budget Float?
+
+  expire_days Int?
+  timeline    String?
+  location    String?
+
+  provider_preferences Json? // array (skills, gender, experience etc)
+  attachments          Json? // images / videos / pdf (array)
+
+  status JobStatus @default(OPEN)
+
+  accepted_bid_id       String?   @unique // set when owner accepts one bid
+  completed_at         DateTime? // set when user marks as completed
+  invited_contractor_id String?   // user "Request Service" from completed job – ye job is contractor k pending me jata he
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relations
+  user               users  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  invited_contractor users? @relation("JobInvitedContractor", fields: [invited_contractor_id], references: [id], onDelete: SetNull)
+  bids               Bid[]
+  accepted_bid       Bid?   @relation("JobAcceptedBid", fields: [accepted_bid_id], references: [id])
+  review             Review?
+
+  @@index([user_id])
+  @@index([invited_contractor_id])
+  @@map("jobs")
+}
+
+model Bid {
+  id         String    @id @default(uuid())
+  job_id     String
+  contractor_id String  // user who placed the bid
+
+  quote_price      Float     // quotation price
+  timeline_estimate String?  // e.g. "2 weeks"
+  notes            String?   @db.LongText
+  proposal_documents Json?  // array of file URLs (from presigned uploads)
+
+  status BidStatus @default(PENDING)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  job        Job  @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  contractor users @relation(fields: [contractor_id], references: [id], onDelete: Cascade)
+  job_accepted Job? @relation("JobAcceptedBid")
+
+  @@index([job_id])
+  @@index([contractor_id])
+  @@map("bids")
+}
+
+// User (job owner) gives review for completed job – rating + review text (Give Review screen)
+model Review {
+  id            String   @id @default(uuid())
+  job_id        String   @unique
+  reviewer_id   String   // job owner (user) who gives review
+  contractor_id String   // contractor who did the job (accepted bid)
+
+  rating      Int     // 1-5 stars
+  review_text String? @db.Text
+
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @updatedAt
+
+  job        Job   @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  reviewer   users @relation("reviews_given", fields: [reviewer_id], references: [id], onDelete: Cascade)
+  contractor users @relation("reviews_received", fields: [contractor_id], references: [id], onDelete: Cascade)
+
+  @@index([job_id])
+  @@index([contractor_id])
+  @@index([reviewer_id])
+  @@map("reviews")
 }

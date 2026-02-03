@@ -1,0 +1,337 @@
+================================================================================
+                    BID & LIVE AUCTION – API + SOCKET GUIDE
+================================================================================
+
+base_url (API)  = http://localhost:3000/api/v1
+socket_url      = http://localhost:3000  (same server; Socket.IO)
+
+All job/bid APIs require: Authorization: Bearer <access_token>
+
+================================================================================
+SOCKET FLOW – DETAIL (kaun pehle join, user auto-join?)
+================================================================================
+
+Q: Pehle contractor join hoga ya user?
+A: Koi fixed order NAHI. Jo bhi pehle "Live Auction" / "View Bids" wala screen
+   open karega aur client emit("join_job_room", { jobId }) karega, woh pehle
+   room me aayega. Usually contractor pehle karta hai kyunki woh "Start Live
+   Auction" tap karke screen open karta hai.
+
+Q: User (job owner) automatically join ho jata hai?
+A: NAHI. User automatically join NAHI hota. Server kisi ko bhi room me add nahi
+   karta jab tak client explicitly join_job_room emit na kare.
+   → User ko bhi app me "My Job Bids" / "Live Bids" jaise screen pe jaakar
+     same emit("join_job_room", { jobId }) karna padega.
+   → Tab hi user ko real-time bid_received / bid_accepted events milenge.
+
+Q: Room me kaun kaun ho sakta hai?
+A: Sirf woh jo join_job_room emit karenge:
+   - Contractor: jab "Start Live Auction" / "Live Auction" screen open kare
+   - User (job owner): jab "View Bids" / "Live Bids" screen open kare
+   Dono alag-alag time pe join kar sakte hain; order koi bhi ho sakta hai.
+
+STEP-BY-STEP (detail):
+
+1. Socket connect (dono – contractor + user)
+   - App start / login ke baad Socket.IO se server se connect karo.
+   - Handshake me Authorization: Bearer <access_token> bhejo.
+   - Server socket.user_id, socket.user_type set karta hai.
+   - Ab tak koi job room me nahi hai.
+
+2. Contractor "Start Live Auction" karta hai
+   - Contractor job detail pe hai → "Start Live Auction" tap karta hai.
+   - Client: socket.emit("join_job_room", { jobId: "..." }).
+   - Server: socket ko room "job-room-<jobId>" me add karta hai.
+   - Server: usi socket ko "room_joined" + "auction_members" (bids list) bhejta hai.
+   - Contractor ko ab Auction Members list dikh jati hai.
+
+3. User (job owner) kab join kare?
+   - User jab apni job ki bids dekhne / live updates lene screen open kare.
+   - Client: socket.emit("join_job_room", { jobId: "..." })  ← same event.
+   - Server: is socket ko bhi same room "job-room-<jobId>" me add karta hai.
+   - Server: user ko bhi "room_joined" + "auction_members" bhejta hai.
+   - Ab room me contractor(s) + user dono hain (jo join kar chuke hain).
+
+4. Contractor bid submit karta hai (API ya socket)
+   - API: POST /job/:jobId/bid → server DB me save karke io.to(roomName).emit("bid_received", bid).
+   - Socket: emit("bid_submit", {...}) → server save karke io.to(roomName).emit("bid_received", bid).
+   - Sab jo is room me hain (user + saare contractors) ko "bid_received" milta hai.
+
+5. User (job owner) ek bid accept karta hai
+   - API: POST /job/:jobId/bid/:bidId/accept.
+   - Server job close karta hai, phir io.to(roomName).emit("bid_accepted", acceptedBid).
+   - Sab jo room me hain unhe "bid_accepted" milta hai.
+
+Summary table:
+  - Join order: koi bhi (contractor pehle ya user pehle).
+  - User auto-join: NAHI; user ko bhi join_job_room emit karna padega.
+  - Room me kaun: sirf jinhone join_job_room emit kiya ho.
+
+================================================================================
+CONTRACTOR FLOW (summary)
+================================================================================
+
+1. Contractor gets list of jobs       → GET /job/list
+2. Contractor opens job detail        → GET /job/:jobId
+3. Contractor taps "Start Live Auction" → emit("join_job_room", { jobId })
+4. Contractor gets room_joined + auction_members → Live Auction screen
+5. Contractor places bid             → POST /job/:jobId/bid (or bid_submit)
+6. Everyone in room gets bid_received
+7. User opens "View Bids" for that job → emit("join_job_room", { jobId })  ← user bhi join
+8. User accepts one bid              → POST /job/:jobId/bid/:bidId/accept
+9. Everyone in room gets bid_accepted
+
+================================================================================
+API – CONTRACTOR: LIST JOBS (Latest Jobs)
+================================================================================
+
+GET {{base_url}}/job/list
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Query (optional):
+  search    = string (search in title/description)
+  location  = string
+  job_type  = REGULAR | LIVE
+  limit     = number (1–100, default 20)
+  offset    = number (default 0)
+
+Example:
+  GET {{base_url}}/job/list?job_type=LIVE&limit=10
+
+================================================================================
+API – GET JOB BY ID (job detail, Place Your Bid screen)
+================================================================================
+
+GET {{base_url}}/job/:jobId
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Returns job with user (owner) details. Use for "Lorem Ipsum Project" detail and
+"Place Your Bid" / "Start Live Auction" entry.
+
+================================================================================
+API – PLACE BID (form submit)
+================================================================================
+
+POST {{base_url}}/job/:jobId/bid
+
+Headers:
+  Authorization: Bearer <access_token>
+  Content-Type: application/json
+
+Body (raw JSON):
+
+{
+  "quote_price": 6000,
+  "timeline_estimate": "2 weeks",
+  "notes": "Optional notes here...",
+  "proposal_documents": [
+    "https://your-bucket.s3.region.amazonaws.com/proposals/abc.pdf"
+  ]
+}
+
+Validation:
+  quote_price         = number, required, >= 0
+  timeline_estimate   = string, optional, max 255
+  notes               = string, optional, max 5000
+  proposal_documents  = array of strings (URLs/keys), optional
+
+Notes:
+  - One active (PENDING) bid per contractor per job. Submitting again updates that bid.
+  - After success, server emits socket event bid_received to job room.
+  - Response message: "Bid placed successfully. You'll receive updates if your bid is accepted or outbid."
+
+================================================================================
+API – GET BIDS BY JOB (Auction Members list)
+================================================================================
+
+GET {{base_url}}/job/:jobId/bids
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Returns:
+  { "job": { ... }, "bids": [ ... ] }
+
+Use for "Live Auction" screen – list of bidders (Auction Members) with quote,
+contractor name, location, etc. Job owner and contractors in the room can call
+this; socket AUCTION_MEMBERS is also sent when joining the room.
+
+================================================================================
+API – ACCEPT BID (job owner only, one bid per job)
+================================================================================
+
+POST {{base_url}}/job/:jobId/bid/:bidId/accept
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Body: none
+
+- Only the job owner (user_id of job) can call this.
+- Accepts exactly one bid; all other bids for that job are set to REJECTED,
+  job status becomes CLOSED, job.accepted_bid_id is set.
+- Server emits socket event bid_accepted to job room.
+
+================================================================================
+SOCKET – CONNECTION (auth)
+================================================================================
+
+Connect with Socket.IO client. Send access_token in handshake so server can
+set socket.user_id and socket.user_type.
+
+Example (JavaScript client):
+
+  const io = require("socket.io-client");
+  const socket = io("http://localhost:3000", {
+    extraHeaders: {
+      Authorization: "Bearer YOUR_ACCESS_TOKEN"
+    }
+  });
+
+  // Or if client uses auth option:
+  const socket = io("http://localhost:3000", {
+    auth: {
+      token: "YOUR_ACCESS_TOKEN"
+    }
+  });
+
+Server expects: socket.handshake.headers.authorization (e.g. "Bearer <token>").
+Ensure your client sends Authorization in the handshake the same way the server
+reads it (see socket_manager.js #handshake).
+
+On success, server emits: "authenticated" with { user_id, user_type }.
+→ Client should listen for "authenticated" and then stop loading / show "Connected".
+
+On failure, server emits "error" and disconnects the socket.
+→ Client should listen for "error" and "disconnect" and show error / retry.
+
+================================================================================
+TROUBLESHOOTING – Contractor connect pe timeout / loading
+================================================================================
+
+1. Contractor client ko bhi same tarah token bhejna hoga:
+   - extraHeaders: { Authorization: "Bearer " + access_token }
+   ya auth: { token: "Bearer " + access_token } (server dono read karta hai).
+   Agar token nahi bheja ya galat key me bheja, server "error" bhej ke disconnect
+   karega.
+
+2. Client ko "authenticated" event sunna chahiye:
+   - socket.on("authenticated", (data) => { ... stop loading, show Connected ... })
+   Agar client sirf "connect" pe rely kare aur server auth fail kare, to socket
+   disconnect ho jayega aur client timeout/loading dikhata rahe.
+
+3. Token valid hona chahiye (expired nahi):
+   - Contractor ka access_token same user ka hona chahiye jo CONTRACTOR type hai.
+   Expired token pe server "Invalid or expired token" bhej ke disconnect karta hai.
+
+4. "error" aur "disconnect" handle karo:
+   - socket.on("error", (err) => { show err.message; stop loading })
+   - socket.on("disconnect", (reason) => { show reason; stop loading })
+   Isse user ko pata chal jayega kyun connect nahi hua.
+
+================================================================================
+SOCKET – JOB ROOM (Live Auction)
+================================================================================
+
+Room name: job-room-<jobId>
+
+- Contractor or job owner joins the room to see live bids and updates.
+- On join, server sends ROOM_JOINED and AUCTION_MEMBERS (current bids list).
+
+Client EMIT (you send):
+
+  join_job_room
+    Payload: { jobId: "<uuid>" }
+    Use when: User opens "Live Auction" screen for a job.
+
+  bid_submit  (optional; prefer API POST /job/:jobId/bid)
+    Payload: {
+      jobId,
+      quotePrice,
+      timeline?, note?, proposalUrl?, proposal_documents?
+    }
+    Use when: Submitting bid via socket instead of API. Same effect: saved to DB,
+    then broadcast bid_received to room.
+
+Client LISTEN (server sends to you):
+
+  room_joined
+    Payload: { jobId, roomName }
+    After you joined the job room.
+
+  auction_members
+    Payload: { jobId, bids, count }
+    List of bids for "Auction Members (15)" – show names, locations, offer amounts.
+    Your own bid can be marked using contractor_id === socket.user_id.
+
+  bid_received
+    Payload: <bid object with contractor details>
+    New or updated bid. Append/update in "Auction Members" list and refresh UI.
+
+  bid_accepted
+    Payload: <accepted bid object>
+    Job owner accepted one bid. Job is closed; show success / "Bid accepted" state.
+
+  error
+    Payload: { message: "..." }
+    e.g. missing jobId, job not open, validation errors.
+
+================================================================================
+SOCKET EVENT NAMES (exact strings)
+================================================================================
+
+  join_job_room    – client emits with { jobId }
+  room_joined      – server emits after join
+  auction_members  – server emits with { jobId, bids, count }
+  bid_submit       – client emits (optional; else use API)
+  bid_received     – server emits on new/updated bid (API or socket)
+  bid_accepted     – server emits when owner accepts a bid
+
+================================================================================
+QUICK REFERENCE – BID API BODIES
+================================================================================
+
+Place Bid:
+  {"quote_price":6000,"timeline_estimate":"2 weeks","notes":"Optional notes","proposal_documents":["https://example.com/doc.pdf"]}
+
+Place Bid (minimal):
+  {"quote_price":5500}
+
+================================================================================
+FLOW DIAGRAM (contractor)
+================================================================================
+
+  [Latest Jobs]  GET /job/list
+       ↓
+  [Job Card]     Tap job → GET /job/:jobId
+       ↓
+  [Job Detail]   "Place Your Bid" / "Start Live Auction"
+       ↓
+  [Start Live Auction]
+       → Socket: emit("join_job_room", { jobId })
+       → Listen: "room_joined", "auction_members"
+       → Show "Auction Members (N)" list
+       ↓
+  [Place Your Bid form]
+       → POST /job/:jobId/bid  (quote_price, timeline_estimate, notes, proposal_documents)
+       → Show "Thank You" – "You'll receive updates if your bid is accepted or outbid"
+       ↓
+  [Real-time]
+       → Listen "bid_received" → update Auction Members list
+       → Listen "bid_accepted" → show accepted state / close auction
+
+FLOW (job owner – user)
+
+  [My Jobs]      GET /job/my-jobs
+  [Job Bids]     GET /job/:jobId/bids
+  [Live updates] socket.emit("join_job_room", { jobId })  ← user ko bhi ye karna padega
+       → room_joined, auction_members mile
+       → nayi bid aane pe bid_received milega
+  [Accept one]   POST /job/:jobId/bid/:bidId/accept
+       → All in room get "bid_accepted"
+
+================================================================================

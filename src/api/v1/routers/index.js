@@ -14,12 +14,14 @@ const user_router = require("./user");
 const presigned_url_router = require("./presigned_url");
 
 const public_router = require("./public");
+const job_router = require("./job");
 
 /**@PRIVATE */
-router.use("/user" , user_router)
+router.use("/user", user_router);
 router.use("/notifications", notification_router);
 router.use("/chat", chat_router);
 router.use("/presigned-url", presigned_url_router);
+router.use("/job", job_router);
 
 /**@PUBLIC */
 router.use("/help_and_feedback", help_and_feedback_router);

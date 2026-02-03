@@ -276,12 +276,23 @@ class UserServiceHelpers {
     });
   };
 
-  // Get already a user
+  // Get already a user – trim identifier so "  email@x.com  " matches DB
   get_already_user = async ({ identifier, identifier_type, find_user_obj }) => {
+    if (find_user_obj) {
+      return await prisma.users.findFirst({
+        where: find_user_obj,
+        include: {
+          user_secrets: true,
+          user_details: true,
+          contractor_profile: true,
+        },
+      });
+    }
+    const trimmed = typeof identifier === "string" ? identifier.trim() : identifier;
     const find_user_where = {};
-    find_user_where[identifier_type] = identifier;
+    find_user_where[identifier_type] = trimmed;
     return await prisma.users.findFirst({
-      where: find_user_obj || find_user_where,
+      where: find_user_where,
       include: {
         user_secrets: true,
         user_details: true,

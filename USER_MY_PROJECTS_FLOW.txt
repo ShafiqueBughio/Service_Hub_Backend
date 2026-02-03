@@ -1,0 +1,117 @@
+================================================================================
+                    USER FLOW – MY PROJECTS (Job Owner)
+================================================================================
+
+Ye flow USER (job owner) ka hai – jo job post karta hai, bid accept karta hai,
+phir active → completed karta hai.
+
+================================================================================
+SCREENS (screenshot ke hisaab se)
+================================================================================
+
+1. My Projects (list)     – Tabs: Pending | Active Project | Completed Project
+2. Job detail by ID       – Bidding Requests list (accept / reject / chat)
+3. Project Quote modal    – Price, timeline, download proposal → Accept / Reject
+4. Reject Reason modal    – Reason select + submit
+5. Project Detailed modal – Price + Timeline (decided) enter → Continue
+6. Active project detail  – Contractor info, Mark as Completed, Chat
+7. Completed project      – Request Service, Give Review, Download All
+8. Give Review            – Rating + review text → Submit Review
+9. Request Service        – New job form (Project Title, Description, Budget, etc.)
+
+================================================================================
+STEP-BY-STEP FLOW (saf aur short)
+================================================================================
+
+--- PENDING (bid abhi accept nahi hui) ---
+
+1. User ki screen: My Projects
+   → Tab: Pending (sab se pehle yahi aata hai)
+   → List me woh jobs dikhengi jinke bids abhi accept nahi kiye.
+
+2. User job card pe tap kare
+   → Job detail by ID open ho (GET /job/:jobId)
+   → Neeche "Bidding Requests" – har contractor ka bid (name, location, Accept / Reject / Chat).
+
+3. User kisi bid pe "Accept" ya bid open kare
+   → Modal: Project Quote (price, timeline, proposal docs, Download All)
+   → User "Accept Bid" kare → API: POST /job/:jobId/bid/:bidId/accept
+   → Bid ki info (price, timeline, proposal_documents) download b kar sakta hai.
+
+4. Accept ke baad (optional) modal: "Project Detailed"
+   → User decided "Price" aur "Timeline" enter kare (confirm/final)
+   → Continue → Project ab Active me chala jata hai.
+
+--- ACTIVE PROJECT (bid accept ho chuki) ---
+
+5. My Projects → Tab: Active Project
+   → Woh jobs jinki ek bid accept ho chuki, kaam chal raha hai.
+
+6. User active job open kare
+   → Contractor detail (name, photo, location), Chat icon
+   → Project Decided Cost, Decided Timeline
+   → Button: "Mark as Completed"
+
+7. User "Mark as Completed" kare
+   → API: PATCH /job/:jobId/mark-completed
+   → Project Completed tab me chala jata hai.
+
+--- COMPLETED ---
+
+8. My Projects → Tab: Completed Project
+   → Woh jobs jo user ne mark as completed kar diye.
+
+9. User completed job open kare
+   → Contractor + Chat
+   → Project Attached Files → "Download All"
+   → Buttons: "Request Service" | "Give Review"
+
+10. Request Service
+    → Naya job form (Request Service screen): Title, Description, Budget, Timeline, Documents
+    → Same contractor ko dubara request kar sakte ho (nayi job create).
+
+11. Give Review
+    → Screen: "How was your Service?" – rating (stars) + "Write a review"
+    → Submit Review → Review save (review API alag se).
+
+================================================================================
+API – USER (My Projects flow)
+================================================================================
+
+GET  /job/my-jobs?tab=pending   – Pending jobs (OPEN, bid accept nahi hui)
+GET  /job/my-jobs?tab=active   – Active jobs (bid accepted, completed_at null)
+GET  /job/my-jobs?tab=completed – Completed jobs (completed_at set)
+GET  /job/my-jobs               – Saari user ki jobs (no filter)
+
+GET  /job/:jobId                – Job detail + accepted_bid (decided price/timeline) + bids count
+GET  /job/:jobId/bids           – Saari bids (Bidding Requests list)
+
+POST /job/:jobId/bid/:bidId/accept – Ek bid accept (sirf job owner)
+
+PATCH /job/:jobId/mark-completed  – Job ko completed mark karo (sirf job owner, sirf jisme bid accept ho chuki)
+
+================================================================================
+SUMMARY TABLE
+================================================================================
+
+| Screen / Action      | API / Step |
+|----------------------|------------|
+| My Projects – Pending | GET /job/my-jobs?tab=pending |
+| Job detail, bids     | GET /job/:jobId, GET /job/:jobId/bids |
+| Accept bid           | POST /job/:jobId/bid/:bidId/accept |
+| Download bid info    | accepted_bid in GET /job/:jobId (quote_price, timeline_estimate, proposal_documents) |
+| Decided price/timeline| Accept ke baad modal me user enter kare (optional; stored in accepted_bid) |
+| Active Project list  | GET /job/my-jobs?tab=active |
+| Mark as Completed    | PATCH /job/:jobId/mark-completed |
+| Completed list       | GET /job/my-jobs?tab=completed |
+| Request Service      | POST /job/create (nayi job) |
+| Give Review          | Review API (alag endpoint) |
+
+================================================================================
+REJECT BID (screenshot: Reject Reason)
+================================================================================
+
+- User "Reject" kare → Modal: "Reject Reason" (Not the Right Fit, Too Expensive, etc.) + optional Reason text.
+- Reject bid API abhi optional hai; agar chahiye to alag endpoint: POST /job/:jobId/bid/:bidId/reject with body { reason, reason_code }.
+
+================================================================================

@@ -1,0 +1,174 @@
+================================================================================
+                    CONTRACTOR FLOW – REGULAR BID + LIVE BID (Step-by-Step)
+================================================================================
+
+base_url = http://localhost:3000/api/v1
+socket_url = http://localhost:3000
+
+Sab APIs: Authorization: Bearer <access_token> (contractor ka token)
+
+================================================================================
+CONTRACTOR SCREENS (screenshot ke hisaab se)
+================================================================================
+
+1. Home                 – Latest Jobs list (Regular Bidding / Live Auction tags)
+2. Job detail           – Service Provider Preferences, Location, Place Your Bid / Start Live Auction / Make new offer
+3. Place Your Bid       – Quote, Timeline, Notes, Project Proposal (upload)
+4. Thank You            – "You'll receive updates if your bid is accepted or outbid"
+5. My Bids              – Tabs: Regular Bid | Live Bid → Pending | Active | Past
+6. My Bid (detail)      – My Bid section: Pending, quote, timeline, proposal, Reject Reason (if rejected)
+7. Bid Rejected         – "Your Bid Rejected by User" banner
+8. Active project       – Client info, Active, Project Decided Cost, Decided Timeline, Chat, Download All
+9. Live Auction         – Auction Members list, Place Your Offer (+ / -)
+10. Completed / Past    – Client's Review (rating, review text)
+
+================================================================================
+REGULAR BID FLOW (step-by-step, test karne ke liye)
+================================================================================
+
+Step 1 – Latest Jobs (Home)
+  API: GET {{base_url}}/job/list
+  Query (optional): search=, location=, job_type=REGULAR, limit=, offset=
+  Screen: Job cards dikhenge; "Regular Bidding" (green dot) wale jobs.
+
+Step 2 – Job detail (Regular job pe tap)
+  API: GET {{base_url}}/job/:jobId
+  Screen: Title, description, Service Provider Preferences, Location, Bids Requests, Budget, Timeline, Attached Files, "Place Your Bid" button.
+
+Step 3 – Place Your Bid (form)
+  API: POST {{base_url}}/job/:jobId/bid
+  Body: { "quote_price": 7000, "timeline_estimate": "Within 40 days", "notes": "...", "proposal_documents": ["url1", "url2"] }
+  Screen: Quote, Timeline, Notes, Upload Documents → Submit.
+
+Step 4 – Thank You
+  Response: "Bid placed successfully. You'll receive updates if your bid is accepted or outbid."
+  Screen: Thank You modal → Continue.
+
+Step 5 – My Bids (Regular Bid → Pending)
+  API: GET {{base_url}}/job/my-bids?tab=pending&type=REGULAR
+  Screen: "Regular Bid" tab, "Pending Bid" selected – list of jobs jahan contractor ne bid lagayi, abhi accept/reject nahi hua.
+
+Step 6 – My Bid detail (card pe tap)
+  API: GET {{base_url}}/job/:jobId (same job) + contractor apna bid GET /job/:jobId/bids me apna entry dekh sakta (contractor_id match)
+  Screen: "My Bid" section – Pending, $7,000, Within 40 days, Project Proposal (Download All), Reject Reason (empty if pending).
+
+--- Agar user ACCEPT kare ---
+
+Step 7 – My Bids (Regular Bid → Active)
+  API: GET {{base_url}}/job/my-bids?tab=active&type=REGULAR
+  Screen: "Active Bid" – "Ongoing" badge, project card.
+
+Step 8 – Active project detail (card pe tap)
+  API: GET {{base_url}}/job/:jobId
+  Screen: Client (Alex Murphy), Chat icon, Active, Project ID, Project Decided Cost ($5,000), Decided Timeline (50 Days), Download All.
+
+--- Agar user REJECT kare ---
+
+Step 7b – My Bids (Regular Bid → Past)
+  API: GET {{base_url}}/job/my-bids?tab=past&type=REGULAR
+  Screen: "Past Bid" – "Rejected" tag.
+
+Step 8b – Bid Rejected detail (card pe tap)
+  API: GET {{base_url}}/job/:jobId
+  Screen: "Your Bid Rejected by User" banner, job detail, My Bid section me Reject Reason (agar API me reject_reason aata ho).
+
+--- Job complete (user Mark as Completed) ---
+
+Step 9 – My Bids (Regular Bid → Past, Completed)
+  API: GET {{base_url}}/job/my-bids?tab=past&type=REGULAR
+  Screen: "Past Bid" – "Completed" tag.
+
+Step 10 – Completed project detail
+  API: GET {{base_url}}/job/:jobId
+  Screen: Client's Review – rating (stars), review text.
+
+================================================================================
+LIVE BID FLOW (step-by-step, test karne ke liye)
+================================================================================
+
+Step 1 – Latest Jobs (Home)
+  API: GET {{base_url}}/job/list?job_type=LIVE
+  Screen: "Live Auction" (red dot) wale jobs.
+
+Step 2 – Job detail (Live job pe tap)
+  API: GET {{base_url}}/job/:jobId
+  Screen: "Live Auction" tag, Bids Requests, "Start Live Auction" ya "Make new offer" button.
+
+Step 3 – Start Live Auction (socket join)
+  Client: socket.emit("join_job_room", { jobId: "<jobId>" })
+  Server sends: "room_joined", "auction_members" { jobId, bids, count }
+  Screen: "Live Auction" – Auction Members (15) list, har bidder ka name, location, offer. "Place Your Offer" (+ / -) ya "Place Your Bid" form.
+
+Step 4 – Place bid (API ya socket)
+  API: POST {{base_url}}/job/:jobId/bid
+  Body: { "quote_price": 6000, "timeline_estimate": "Within 30 days", "notes": "...", "proposal_documents": [] }
+  YA Socket: socket.emit("bid_submit", { jobId, quotePrice: 6000, timeline: "Within 30 days", note: "...", proposal_documents: [] })
+  Screen: Offer enter karo → "Place Your Offer" / Submit.
+  Real-time: Sab ko "bid_received" event; list update.
+
+Step 5 – Thank You (same as Regular)
+  Screen: Thank You → Continue.
+
+Step 6 – My Bids (Live Bid → Pending)
+  API: GET {{base_url}}/job/my-bids?tab=pending&type=LIVE
+  Screen: "Live Bid" tab, "Pending Bid" – "Ongoing" wale cards.
+
+Step 7 – Active / Past (same logic as Regular)
+  Accept → GET {{base_url}}/job/my-bids?tab=active&type=LIVE → Active project detail (Client, Decided Cost, Chat).
+  Reject → GET {{base_url}}/job/my-bids?tab=past&type=LIVE → Rejected.
+  Completed → GET {{base_url}}/job/my-bids?tab=past&type=LIVE → Completed, Client's Review.
+
+================================================================================
+MY BIDS API (Contractor – saari tabs)
+================================================================================
+
+GET {{base_url}}/job/my-bids
+
+Query (optional):
+  tab = pending  → bid PENDING, job OPEN (user ne abhi accept/reject nahi kiya)
+  tab = active   → bid ACCEPTED, job CLOSED, completed_at null (project chal raha hai)
+  tab = past     → bid REJECTED ya (ACCEPTED + job completed_at set)
+  type = REGULAR → sirf Regular Bidding jobs
+  type = LIVE    → sirf Live Auction jobs
+
+Examples:
+  GET {{base_url}}/job/my-bids?tab=pending&type=REGULAR   – Regular, Pending
+  GET {{base_url}}/job/my-bids?tab=active&type=LIVE      – Live, Active
+  GET {{base_url}}/job/my-bids?tab=past                  – Saari Past (Rejected + Completed)
+  GET {{base_url}}/job/my-bids                           – Saari contractor ki bids
+
+Response: Array of bids; har bid me job (title, description, job_type, user/client, etc.) include hai.
+
+================================================================================
+QUICK TEST ORDER (ek baar me run karke dekh lo)
+================================================================================
+
+1. GET /job/list                    → Latest Jobs list
+2. GET /job/:jobId                  → Koi bhi job open karke detail dekho (Regular ya Live)
+3. POST /job/:jobId/bid             → Usi job pe bid lagao (quote_price, timeline_estimate, etc.)
+4. GET /job/my-bids?tab=pending     → My Bids me Pending me dikhna chahiye
+5. (User accept kare to) GET /job/my-bids?tab=active → Active me dikhega
+6. (User reject kare to) GET /job/my-bids?tab=past  → Past me Rejected dikhega
+7. (User mark completed kare to) GET /job/my-bids?tab=past → Past me Completed dikhega
+
+Live ke liye: same, sirf job_type=LIVE wali job pe bid lagao, aur socket join_job_room use karke auction_members / bid_received suno.
+
+================================================================================
+SUMMARY TABLE
+================================================================================
+
+| Screen / Tab     | API / Action |
+|------------------|--------------|
+| Home (Latest Jobs) | GET /job/list |
+| Job detail       | GET /job/:jobId |
+| Place Bid        | POST /job/:jobId/bid |
+| My Bids – Regular – Pending | GET /job/my-bids?tab=pending&type=REGULAR |
+| My Bids – Regular – Active  | GET /job/my-bids?tab=active&type=REGULAR |
+| My Bids – Regular – Past    | GET /job/my-bids?tab=past&type=REGULAR |
+| My Bids – Live – Pending    | GET /job/my-bids?tab=pending&type=LIVE |
+| My Bids – Live – Active     | GET /job/my-bids?tab=active&type=LIVE |
+| My Bids – Live – Past       | GET /job/my-bids?tab=past&type=LIVE |
+| Live Auction (join)        | socket emit join_job_room { jobId } |
+| Live (place offer)         | POST /job/:jobId/bid ya socket bid_submit |
+
+================================================================================

@@ -24,13 +24,14 @@ class UserSchema {
     query: Joi.object({}),
     params: Joi.object({}),
     body: Joi.object({
-      identifier: Joi.string().max(100).required(),
+      identifier: Joi.string().max(100).optional(),
+      email: Joi.string().max(100).optional(),
       fcm_token: Joi.string(),
       password: Joi.string()
         .pattern(/^(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/)
         .max(16)
         .required(),
-    }),
+    }).or("identifier", "email"),
   });
 
   verify_otp_schema = Joi.object({
@@ -152,6 +153,7 @@ class UserSchema {
       location: Joi.string().required(),
       date_of_birth: Joi.date().required(),
       latitude: Joi.string().required(),
+      profile_picture: Joi.string().optional(),
       longitude: Joi.string().required(),
       city: Joi.string().required(),
       state: Joi.string().required(),
@@ -171,7 +173,9 @@ class UserSchema {
       address: Joi.string().required(),
       city: Joi.string().required(),
       state: Joi.string().required(),
+      contact_phone: Joi.string().optional(),
       gender: Joi.string().valid("MALE", "FEMALE", "OTHER").required(),
+      profile_picture: Joi.string().optional(),
     }),
   });
 
@@ -188,24 +192,29 @@ class UserSchema {
       contact_phone: Joi.string().required(),
       gender: Joi.string().valid("MALE", "FEMALE", "OTHER").required(),
       // Contractor specific
+      profile_picture: Joi.string().optional(),
       about: Joi.string().optional(),
       services: Joi.array().items(Joi.string()).min(1).required(),
-      experiences: Joi.array().items(
-        Joi.object({
-          company: Joi.string(),
-          job_type: Joi.string(),
-          designation: Joi.string(),
-          start_year: Joi.string(),
-          end_year: Joi.string(),
-        })
-      ).optional(),
-      service_areas: Joi.array().items(
-        Joi.object({
-          location: Joi.string(),
-          latitude: Joi.string(),
-          longitude: Joi.string(),
-        })
-      ).optional(),
+      experiences: Joi.array()
+        .items(
+          Joi.object({
+            company: Joi.string(),
+            job_type: Joi.string(),
+            designation: Joi.string(),
+            start_year: Joi.string(),
+            end_year: Joi.string(),
+          }),
+        )
+        .optional(),
+      service_areas: Joi.array()
+        .items(
+          Joi.object({
+            location: Joi.string(),
+            latitude: Joi.string(),
+            longitude: Joi.string(),
+          }),
+        )
+        .optional(),
       business_license: Joi.string().optional(), // URL after upload
       certifications: Joi.array().items(Joi.string()).optional(), // URLs after upload
       portfolio_images: Joi.array().items(Joi.string()).optional(), // URLs after upload
@@ -221,8 +230,10 @@ class UserSchema {
       address: Joi.string(),
       city: Joi.string(),
       state: Joi.string(),
+      contact_phone: Joi.string(),
       gender: Joi.string().valid("MALE", "FEMALE", "OTHER"),
       // Contractor specific (optional)
+      profile_picture: Joi.string(),
       about: Joi.string(),
       experiences: Joi.array().items(
         Joi.object({
@@ -231,7 +242,7 @@ class UserSchema {
           designation: Joi.string(),
           start_year: Joi.string(),
           end_year: Joi.string(),
-        })
+        }),
       ),
       services: Joi.array().items(Joi.string()),
       service_areas: Joi.array().items(
@@ -239,7 +250,7 @@ class UserSchema {
           location: Joi.string(),
           latitude: Joi.string(),
           longitude: Joi.string(),
-        })
+        }),
       ),
     }),
   });

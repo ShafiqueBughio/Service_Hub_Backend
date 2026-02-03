@@ -1,0 +1,240 @@
+================================================================================
+        USER + CONTRACTOR – COMPLETE FLOW (Start se End tak, API + Body)
+================================================================================
+
+base_url   = http://localhost:3000/api/v1
+socket_url = http://localhost:3000
+
+Sab APIs:  Authorization: Bearer <access_token>
+           Content-Type: application/json (jahan body ho)
+
+================================================================================
+PART 1 – USER FLOW (Job Owner) Start se End
+================================================================================
+
+--- Step 1: Create Job (Request Service screen) ---
+Method:  POST
+URL:     {{base_url}}/job/create
+Headers: Authorization: Bearer <access_token>
+         Content-Type: application/json
+Body:
+{
+  "title": "Lorem Ipsum Project",
+  "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+  "expire_days": 3,
+  "min_budget": 5000,
+  "max_budget": 10000,
+  "timeline": "Within 2 Months",
+  "location": "20 Cooper Square, NY, USA",
+  "provider_preferences": ["Plumbing", "Carpentry", "Painting"],
+  "attachments": [
+    { "type": "pdf", "url": "https://your-bucket.s3.region.amazonaws.com/jobs/123_file.pdf" },
+    { "type": "image", "url": "https://your-bucket.s3.region.amazonaws.com/jobs/123_photo.jpg" }
+  ]
+}
+Note: job_type auto (max_budget <= 2000 = REGULAR, 2001+ = LIVE). expire_days: 1,3,5,7.
+
+--- Step 2: My Projects – Pending (bids abhi accept nahi kiye) ---
+Method:  GET
+URL:     {{base_url}}/job/my-jobs?tab=pending
+Headers: Authorization: Bearer <access_token>
+Body:    none
+
+--- Step 3: Job detail (job card tap – Bidding Requests dekhne) ---
+Method:  GET
+URL:     {{base_url}}/job/:jobId
+Headers: Authorization: Bearer <access_token>
+Body:    none
+Example: GET {{base_url}}/job/550e8400-e29b-41d4-a716-446655440000
+
+--- Step 4: Saari bids list (Bidding Requests) ---
+Method:  GET
+URL:     {{base_url}}/job/:jobId/bids
+Headers: Authorization: Bearer <access_token>
+Body:    none
+
+--- Step 5: Accept Bid (ek bid accept – sirf ek) ---
+Method:  POST
+URL:     {{base_url}}/job/:jobId/bid/:bidId/accept
+Headers: Authorization: Bearer <access_token>
+Body:    none
+Example: POST {{base_url}}/job/550e8400-e29b-41d4-a716-446655440000/bid/660e8400-e29b-41d4-a716-446655440001/accept
+
+--- Step 6: My Projects – Active (bid accept ho chuki) ---
+Method:  GET
+URL:     {{base_url}}/job/my-jobs?tab=active
+Headers: Authorization: Bearer <access_token>
+Body:    none
+
+--- Step 7: Active job detail (Contractor, Chat, Mark as Completed) ---
+Method:  GET
+URL:     {{base_url}}/job/:jobId
+Headers: Authorization: Bearer <access_token>
+Body:    none
+
+--- Step 8: Mark as Completed ---
+Method:  PATCH
+URL:     {{base_url}}/job/:jobId/mark-completed
+Headers: Authorization: Bearer <access_token>
+Body:    none
+Example: PATCH {{base_url}}/job/550e8400-e29b-41d4-a716-446655440000/mark-completed
+
+--- Step 9: My Projects – Completed ---
+Method:  GET
+URL:     {{base_url}}/job/my-jobs?tab=completed
+Headers: Authorization: Bearer <access_token>
+Body:    none
+
+--- Step 10 (optional): Update Job ---
+Method:  PATCH
+URL:     {{base_url}}/job/:jobId
+Headers: Authorization: Bearer <access_token>
+         Content-Type: application/json
+Body (sirf jo change karna ho):
+{
+  "title": "Updated Project Title",
+  "min_budget": 6000,
+  "max_budget": 12000,
+  "status": "OPEN"
+}
+
+--- Step 11 (optional): Delete Job ---
+Method:  DELETE
+URL:     {{base_url}}/job/:jobId
+Headers: Authorization: Bearer <access_token>
+Body:    none
+
+================================================================================
+PART 2 – CONTRACTOR FLOW (Regular + Live) Start se End
+================================================================================
+
+--- Step 1: Latest Jobs (Home) ---
+Method:  GET
+URL:     {{base_url}}/job/list
+Query:   search=, location=, job_type=REGULAR ya LIVE, limit=20, offset=0
+Headers: Authorization: Bearer <access_token>
+Body:    none
+Example: GET {{base_url}}/job/list?job_type=REGULAR
+         GET {{base_url}}/job/list?job_type=LIVE
+
+--- Step 2: Job detail (job card tap – Place Your Bid / Start Live Auction) ---
+Method:  GET
+URL:     {{base_url}}/job/:jobId
+Headers: Authorization: Bearer <access_token>
+Body:    none
+
+--- Step 3: Place Bid (Place Your Bid form) ---
+Method:  POST
+URL:     {{base_url}}/job/:jobId/bid
+Headers: Authorization: Bearer <access_token>
+         Content-Type: application/json
+Body:
+{
+  "quote_price": 7000,
+  "timeline_estimate": "Within 40 days",
+  "notes": "Optional notes here.",
+  "proposal_documents": [
+    "https://your-bucket.s3.region.amazonaws.com/proposals/about_us.pdf",
+    "https://your-bucket.s3.region.amazonaws.com/proposals/project_doc.pdf"
+  ]
+}
+Minimal body: { "quote_price": 5500 }
+
+--- Step 4: My Bids – Pending (Regular) ---
+Method:  GET
+URL:     {{base_url}}/job/my-bids?tab=pending&type=REGULAR
+Headers: Authorization: Bearer <access_token>
+Body:    none
+
+--- Step 4b: My Bids – Pending (Live) ---
+Method:  GET
+URL:     {{base_url}}/job/my-bids?tab=pending&type=LIVE
+Headers: Authorization: Bearer <access_token>
+Body:    none
+
+--- Step 5: My Bids – Active (bid accept ho chuki) ---
+Method:  GET
+URL:     {{base_url}}/job/my-bids?tab=active&type=REGULAR
+         {{base_url}}/job/my-bids?tab=active&type=LIVE
+Headers: Authorization: Bearer <access_token>
+Body:    none
+
+--- Step 6: Active job detail (Client, Decided Cost, Chat, Download All) ---
+Method:  GET
+URL:     {{base_url}}/job/:jobId
+Headers: Authorization: Bearer <access_token>
+Body:    none
+
+--- Step 7: My Bids – Past (Rejected ya Completed) ---
+Method:  GET
+URL:     {{base_url}}/job/my-bids?tab=past
+         {{base_url}}/job/my-bids?tab=past&type=REGULAR
+         {{base_url}}/job/my-bids?tab=past&type=LIVE
+Headers: Authorization: Bearer <access_token>
+Body:    none
+
+--- Step 8: Auction Members list (kisi job ki saari bids – Live/Regular dono) ---
+Method:  GET
+URL:     {{base_url}}/job/:jobId/bids
+Headers: Authorization: Bearer <access_token>
+Body:    none
+
+----------------------------------------------------------------------
+LIVE AUCTION – Socket (contractor)
+----------------------------------------------------------------------
+Connect:  socket_url = http://localhost:3000
+          Handshake: Authorization: Bearer <access_token> (extraHeaders ya auth.token)
+          Success: server emits "authenticated" { user_id, user_type }
+
+Join room:  socket.emit("join_job_room", { jobId: "<jobId>" })
+            Server sends: "room_joined", "auction_members" { jobId, bids, count }
+
+Place offer (optional – API bhi use kar sakte):  socket.emit("bid_submit", {
+  jobId: "<jobId>",
+  quotePrice: 6000,
+  timeline: "Within 30 days",
+  note: "Optional",
+  proposal_documents: ["url1", "url2"]
+})
+            Server sends sab ko: "bid_received", "bid_accepted" (jab user accept kare)
+
+================================================================================
+PART 3 – COPY-PASTE BODIES (Postman / API test)
+================================================================================
+
+Create Job:
+{"title":"Lorem Ipsum Project","description":"Lorem ipsum dolor sit amet, consectetur adipiscing elit.","expire_days":3,"min_budget":5000,"max_budget":10000,"timeline":"Within 2 Months","location":"20 Cooper Square, NY, USA","provider_preferences":["Plumbing","Carpentry","Painting"],"attachments":[{"type":"pdf","url":"https://example.com/file.pdf"}]}
+
+Place Bid:
+{"quote_price":7000,"timeline_estimate":"Within 40 days","notes":"Optional notes","proposal_documents":["https://example.com/proposal.pdf"]}
+
+Place Bid (minimal):
+{"quote_price":5500}
+
+Update Job (partial):
+{"title":"Updated Title","min_budget":6000,"max_budget":11000}
+
+================================================================================
+PART 4 – TEST ORDER (ek saath flow test karne ke liye)
+================================================================================
+
+USER:
+  1. POST /job/create (body above) → jobId mila
+  2. GET /job/my-jobs?tab=pending → list me woh job dikhe
+  3. GET /job/:jobId → job detail
+  4. (Contractor bid kare to) GET /job/:jobId/bids → bids list, bidId note karo
+  5. POST /job/:jobId/bid/:bidId/accept → accept
+  6. GET /job/my-jobs?tab=active → active me dikhe
+  7. PATCH /job/:jobId/mark-completed → completed
+  8. GET /job/my-jobs?tab=completed → completed me dikhe
+
+CONTRACTOR:
+  1. GET /job/list → open jobs list, jobId note karo
+  2. GET /job/:jobId → job detail
+  3. POST /job/:jobId/bid (body above) → bid placed
+  4. GET /job/my-bids?tab=pending → pending me dikhe
+  5. (User accept kare to) GET /job/my-bids?tab=active → active me dikhe
+  6. GET /job/:jobId → Client, Decided Cost dikhe
+  7. (User mark completed kare to) GET /job/my-bids?tab=past → past me Completed dikhe
+
+================================================================================

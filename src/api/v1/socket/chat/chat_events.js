@@ -34,7 +34,7 @@ class ChatEvents {
         chat_id,
         job_id,
         recipient_id,
-      })
+      }),
     );
 
     socket.on(
@@ -51,7 +51,7 @@ class ChatEvents {
           users: this.users,
           io: this.io,
         });
-      }
+      },
     );
 
     socket.on("leave_chat", ({ chat_id }) => {
@@ -162,8 +162,6 @@ class ChatEvents {
       socket.emit("error", { message: error.message });
     }
   };
-
-
 
   typing_started = ({ socket, chat_id }) => {
     try {

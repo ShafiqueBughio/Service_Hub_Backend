@@ -1,0 +1,770 @@
+================================================================================
+                    SERVICELINK – COMPLETE TEST CASES (Manual / Postman)
+================================================================================
+
+base_url = http://localhost:3000/api/v1
+socket_url = http://localhost:3000 (Socket.IO)
+
+Format per case:
+  TC-ID | Description | Method | URL | Headers | Body/Params | Expected Status | Expected Result
+
+================================================================================
+1. AUTHENTICATION
+================================================================================
+
+TC-AUTH-01 | Register USER with email – valid body
+  Method: POST
+  URL: {{base_url}}/user/register
+  Headers: Content-Type: application/json
+  Body: { "identifier": "testuser@example.com", "password": "Test@1234", "user_type": "USER" }
+  Expected: 200/201
+  Result: user, otp, access_token, refresh_token in response
+
+TC-AUTH-02 | Register CONTRACTOR with phone – valid body
+  Method: POST
+  URL: {{base_url}}/user/register
+  Body: { "identifier": "+1234567890", "password": "Test@1234", "user_type": "CONTRACTOR" }
+  Expected: 200/201
+  Result: user, otp, access_token, refresh_token
+
+TC-AUTH-03 | Register – invalid password (no special char)
+  Method: POST
+  URL: {{base_url}}/user/register
+  Body: { "identifier": "a@b.com", "password": "plainpassword", "user_type": "USER" }
+  Expected: 400
+  Result: Validation error (password must contain special char)
+
+TC-AUTH-04 | Register – missing identifier
+  Method: POST
+  URL: {{base_url}}/user/register
+  Body: { "password": "Test@1234", "user_type": "USER" }
+  Expected: 400
+  Result: Validation error
+
+TC-AUTH-05 | Verify OTP – valid (use token from register)
+  Method: POST
+  URL: {{base_url}}/user/verify_otp
+  Headers: Authorization: Bearer <access_token_from_register>
+  Body: { "otp": 123456 }
+  Expected: 200
+  Result: user, access_token, refresh_token, is_profile_completed
+
+TC-AUTH-06 | Verify OTP – wrong OTP
+  Method: POST
+  URL: {{base_url}}/user/verify_otp
+  Headers: Authorization: Bearer <valid_token>
+  Body: { "otp": 999999 }
+  Expected: 400
+  Result: Invalid OTP message
+
+TC-AUTH-07 | Resend OTP – valid identifier
+  Method: POST
+  URL: {{base_url}}/user/resend_otp
+  Body: { "identifier": "testuser@example.com" }
+  Expected: 200
+  Result: Success / OTP sent
+
+TC-AUTH-08 | Login – valid credentials
+  Method: POST
+  URL: {{base_url}}/user/login
+  Body: { "identifier": "testuser@example.com", "password": "Test@1234" }
+  Expected: 200
+  Result: user, access_token, refresh_token, is_profile_completed
+
+TC-AUTH-09 | Login – wrong password
+  Method: POST
+  URL: {{base_url}}/user/login
+  Body: { "identifier": "testuser@example.com", "password": "WrongPass@1" }
+  Expected: 401
+  Result: Invalid credentials
+
+TC-AUTH-10 | Forget password – valid identifier
+  Method: POST
+  URL: {{base_url}}/user/forget_password
+  Body: { "identifier": "testuser@example.com" }
+  Expected: 200
+  Result: otp, access_token (use this token for verify_otp and reset_password)
+
+TC-AUTH-11 | Verify OTP (password reset flow) – valid
+  Method: POST
+  URL: {{base_url}}/user/verify_otp
+  Headers: Authorization: Bearer <access_token_from_forget_password>
+  Body: { "otp": 123456 }
+  Expected: 200
+  Result: access_token, refresh_token (use new token for reset_password)
+
+TC-AUTH-12 | Reset password – valid
+  Method: POST
+  URL: {{base_url}}/user/reset_password
+  Headers: Authorization: Bearer <access_token_from_verify_otp_reset_flow>
+  Body: { "password": "NewPass@1234" }
+  Expected: 200
+  Result: Success; login with new password should work
+
+TC-AUTH-13 | Change password – valid (logged-in user)
+  Method: POST
+  URL: {{base_url}}/user/change_password
+  Headers: Authorization: Bearer <valid_access_token>
+  Body: { "old_password": "Test@1234", "password": "NewPass@5678" }
+  Expected: 200
+  Result: Success
+
+TC-AUTH-14 | Change password – wrong old password
+  Method: POST
+  URL: {{base_url}}/user/change_password
+  Headers: Authorization: Bearer <valid_access_token>
+  Body: { "old_password": "WrongOld@1", "password": "NewPass@5678" }
+  Expected: 400/401
+  Result: Error (old password incorrect)
+
+TC-AUTH-15 | Refresh token – valid refresh_token
+  Method: POST
+  URL: {{base_url}}/user/refresh_token
+  Body: { "refresh_token": "<valid_refresh_token>" }
+  Expected: 200
+  Result: access_token, refresh_token
+
+TC-AUTH-16 | Logout – valid
+  Method: POST
+  URL: {{base_url}}/user/logout
+  Headers: Authorization: Bearer <valid_access_token>
+  Body: { "refresh_token": "<valid_refresh_token>" }
+  Expected: 200
+  Result: Success; token invalidated
+
+TC-AUTH-17 | Get profile without token
+  Method: GET
+  URL: {{base_url}}/user/profile
+  Expected: 401
+  Result: Unauthorized
+
+--------------------------------------------------------------------------------
+
+================================================================================
+2. USER PROFILE (USER type)
+================================================================================
+
+TC-UP-01 | Create user profile – all required fields (USER only)
+  Method: POST
+  URL: {{base_url}}/user/create_user_profile
+  Headers: Authorization: Bearer <user_access_token>, Content-Type: multipart/form-data
+  Body (form-data): first_name, last_name, address, city, state, gender (required); profile_picture (optional file)
+  Expected: 200/201
+  Result: Profile created; get profile returns these fields
+
+TC-UP-02 | Create user profile – CONTRACTOR token (should fail or 403)
+  Method: POST
+  URL: {{base_url}}/user/create_user_profile
+  Headers: Authorization: Bearer <contractor_access_token>
+  Body: same as TC-UP-01
+  Expected: 403
+  Result: User type check failure (USER only)
+
+TC-UP-03 | Get profile – valid token
+  Method: GET
+  URL: {{base_url}}/user/profile
+  Headers: Authorization: Bearer <valid_token>
+  Expected: 200
+  Result: user object with profile fields
+
+TC-UP-04 | Update profile – partial (PATCH)
+  Method: PATCH
+  URL: {{base_url}}/user/profile
+  Headers: Authorization: Bearer <valid_token>, Content-Type: multipart/form-data
+  Body (form-data): first_name: "Updated", city: "Boston"
+  Expected: 200
+  Result: Profile updated; get profile reflects changes
+
+TC-UP-05 | Update profile picture
+  Method: PATCH
+  URL: {{base_url}}/user/profile_picture
+  Headers: Authorization: Bearer <valid_token>, Content-Type: multipart/form-data
+  Body (form-data): profile_picture: [FILE]
+  Expected: 200
+  Result: profile_picture updated
+
+TC-UP-06 | Get me (user about self)
+  Method: GET
+  URL: {{base_url}}/user/me
+  Headers: Authorization: Bearer <valid_token>
+  Expected: 200
+  Result: Current user info
+
+TC-UP-07 | Update FCM token
+  Method: PATCH
+  URL: {{base_url}}/user/update_fcm
+  Headers: Authorization: Bearer <valid_token>
+  Body: { "refresh_token": "<refresh_token>", "fcm_token": "new_fcm_token_value" }
+  Expected: 200
+  Result: FCM token updated
+
+--------------------------------------------------------------------------------
+
+================================================================================
+3. CONTRACTOR PROFILE
+================================================================================
+
+TC-CP-01 | Create contractor profile – valid (CONTRACTOR only)
+  Method: POST
+  URL: {{base_url}}/user/create_contractor_profile
+  Headers: Authorization: Bearer <contractor_access_token>, Content-Type: application/json
+  Body: { "first_name": "John", "last_name": "Doe", "address": "NY", "city": "NYC", "state": "NY", "contact_phone": "+1234567890", "gender": "MALE", "services": ["Plumbing"] }
+  Expected: 200/201
+  Result: Contractor profile created
+
+TC-CP-02 | Create contractor profile – USER token (403)
+  Method: POST
+  URL: {{base_url}}/user/create_contractor_profile
+  Headers: Authorization: Bearer <user_access_token>
+  Body: same as TC-CP-01
+  Expected: 403
+  Result: CONTRACTOR only
+
+TC-CP-03 | Create contractor profile – missing required (e.g. services)
+  Method: POST
+  URL: {{base_url}}/user/create_contractor_profile
+  Headers: Authorization: Bearer <contractor_access_token>
+  Body: { "first_name": "John", "last_name": "Doe", "address": "NY", "city": "NYC", "state": "NY", "contact_phone": "+1", "gender": "MALE" }
+  Expected: 400
+  Result: Validation error (services required)
+
+TC-CP-04 | Update profile (contractor) – PATCH /user/profile with contractor fields
+  Method: PATCH
+  URL: {{base_url}}/user/profile
+  Headers: Authorization: Bearer <contractor_access_token>, Content-Type: multipart/form-data
+  Body (form-data): about, services, experiences, service_areas (per schema)
+  Expected: 200
+  Result: Contractor profile updated
+
+--------------------------------------------------------------------------------
+
+================================================================================
+4. JOB CRUD (USER – Job Owner)
+================================================================================
+
+TC-JOB-01 | Create job – valid body (REGULAR)
+  Method: POST
+  URL: {{base_url}}/job/create
+  Headers: Authorization: Bearer <user_access_token>, Content-Type: application/json
+  Body: { "title": "Fix Plumbing", "description": "Kitchen sink repair", "expire_days": 3, "min_budget": 500, "max_budget": 2000, "timeline": "1 week", "location": "NYC" }
+  Expected: 200/201
+  Result: job created; job_type auto REGULAR (max_budget <= 2000)
+
+TC-JOB-02 | Create job – valid body (LIVE – auto by max_budget)
+  Method: POST
+  URL: {{base_url}}/job/create
+  Headers: Authorization: Bearer <user_access_token>
+  Body: { "title": "Full Renovation", "description": "Full house", "expire_days": 5, "min_budget": 3000, "max_budget": 10000, "timeline": "2 months", "location": "NYC" }
+  Expected: 200/201
+  Result: job created; job_type auto LIVE (max_budget > 2000)
+
+TC-JOB-03 | Create job – invalid expire_days
+  Method: POST
+  URL: {{base_url}}/job/create
+  Headers: Authorization: Bearer <user_access_token>
+  Body: { "title": "T", "description": "D", "expire_days": 99, "min_budget": 100, "max_budget": 500, "timeline": "1w", "location": "NY" }
+  Expected: 400
+  Result: Validation error (expire_days 1,3,5,7)
+
+TC-JOB-04 | Create job – min_budget > max_budget
+  Method: POST
+  URL: {{base_url}}/job/create
+  Headers: Authorization: Bearer <user_access_token>
+  Body: { "title": "T", "description": "D", "expire_days": 3, "min_budget": 5000, "max_budget": 1000, "timeline": "1w", "location": "NY" }
+  Expected: 400
+  Result: Validation error
+
+TC-JOB-05 | Get job by ID – valid jobId (owner)
+  Method: GET
+  URL: {{base_url}}/job/:jobId
+  Headers: Authorization: Bearer <user_access_token>
+  Expected: 200
+  Result: job detail (owner sees own job)
+
+TC-JOB-06 | Get job by ID – invalid jobId
+  Method: GET
+  URL: {{base_url}}/job/99999999
+  Headers: Authorization: Bearer <user_access_token>
+  Expected: 404
+  Result: Job not found
+
+TC-JOB-07 | Update job – valid (owner)
+  Method: PATCH
+  URL: {{base_url}}/job/:jobId
+  Headers: Authorization: Bearer <user_access_token>
+  Body: { "title": "Updated Title", "description": "Updated desc" }
+  Expected: 200
+  Result: Job updated
+
+TC-JOB-08 | Update job – non-owner (contractor token)
+  Method: PATCH
+  URL: {{base_url}}/job/:jobId
+  Headers: Authorization: Bearer <contractor_access_token>
+  Body: { "title": "Hacked" }
+  Expected: 403
+  Result: Forbidden (only owner can update)
+
+TC-JOB-09 | Delete job – valid (owner)
+  Method: DELETE
+  URL: {{base_url}}/job/:jobId
+  Headers: Authorization: Bearer <user_access_token>
+  Expected: 200
+  Result: Job deleted
+
+TC-JOB-10 | Delete job – non-owner
+  Method: DELETE
+  URL: {{base_url}}/job/:jobId
+  Headers: Authorization: Bearer <contractor_access_token>
+  Expected: 403
+  Result: Forbidden
+
+--------------------------------------------------------------------------------
+
+================================================================================
+5. JOB LIST & MY JOBS (USER / CONTRACTOR)
+================================================================================
+
+TC-JOB-11 | Get my jobs – USER, tab=pending
+  Method: GET
+  URL: {{base_url}}/job/my-jobs?tab=pending
+  Headers: Authorization: Bearer <user_access_token>
+  Expected: 200
+  Result: Jobs with no accepted bid (pending bids)
+
+TC-JOB-12 | Get my jobs – USER, tab=active
+  Method: GET
+  URL: {{base_url}}/job/my-jobs?tab=active
+  Headers: Authorization: Bearer <user_access_token>
+  Expected: 200
+  Result: Jobs with accepted bid, not completed
+
+TC-JOB-13 | Get my jobs – USER, tab=completed
+  Method: GET
+  URL: {{base_url}}/job/my-jobs?tab=completed
+  Headers: Authorization: Bearer <user_access_token>
+  Expected: 200
+  Result: Jobs marked completed
+
+TC-JOB-14 | Get job list – CONTRACTOR (browse open jobs)
+  Method: GET
+  URL: {{base_url}}/job/list
+  Headers: Authorization: Bearer <contractor_access_token>
+  Optional query: filters per validation (e.g. job_type, limit, offset)
+  Expected: 200
+  Result: List of open jobs for contractor
+
+TC-JOB-15 | Get my bids – CONTRACTOR, tab=pending
+  Method: GET
+  URL: {{base_url}}/job/my-bids?tab=pending
+  Headers: Authorization: Bearer <contractor_access_token>
+  Expected: 200
+  Result: Bids with status PENDING, job details
+
+TC-JOB-16 | Get my bids – CONTRACTOR, tab=active
+  Method: GET
+  URL: {{base_url}}/job/my-bids?tab=active
+  Headers: Authorization: Bearer <contractor_access_token>
+  Expected: 200
+  Result: Bids ACCEPTED, job not completed
+
+TC-JOB-17 | Get my bids – CONTRACTOR, tab=past
+  Method: GET
+  URL: {{base_url}}/job/my-bids?tab=past
+  Headers: Authorization: Bearer <contractor_access_token>
+  Expected: 200
+  Result: Past bids (rejected or job completed)
+
+TC-JOB-18 | Get my bids – type=REGULAR or type=LIVE
+  Method: GET
+  URL: {{base_url}}/job/my-bids?tab=pending&type=LIVE
+  Headers: Authorization: Bearer <contractor_access_token>
+  Expected: 200
+  Result: Filtered by job type
+
+--------------------------------------------------------------------------------
+
+================================================================================
+6. BIDS (CONTRACTOR place, USER accept)
+================================================================================
+
+TC-BID-01 | Place bid – CONTRACTOR, valid jobId
+  Method: POST
+  URL: {{base_url}}/job/:jobId/bid
+  Headers: Authorization: Bearer <contractor_access_token>, Content-Type: application/json
+  Body: { "quote_price": 1500, "timeline_estimate": "1 week", "notes": "Can start tomorrow" }
+  Expected: 200/201
+  Result: Bid created/updated for this contractor on this job
+
+TC-BID-02 | Place bid – USER token (non-contractor)
+  Method: POST
+  URL: {{base_url}}/job/:jobId/bid
+  Headers: Authorization: Bearer <user_access_token>
+  Body: { "quote_price": 1500, "timeline_estimate": "1 week" }
+  Expected: 403 or 400
+  Result: Only contractor can bid (or validation)
+
+TC-BID-03 | Place bid – invalid jobId
+  Method: POST
+  URL: {{base_url}}/job/99999999/bid
+  Headers: Authorization: Bearer <contractor_access_token>
+  Body: { "quote_price": 1500, "timeline_estimate": "1 week" }
+  Expected: 404
+  Result: Job not found
+
+TC-BID-04 | Get bids by job – job owner (USER)
+  Method: GET
+  URL: {{base_url}}/job/:jobId/bids
+  Headers: Authorization: Bearer <user_access_token>
+  Expected: 200
+  Result: All bids for this job (owner can see)
+
+TC-BID-05 | Get bids by job – CONTRACTOR (same job)
+  Method: GET
+  URL: {{base_url}}/job/:jobId/bids
+  Headers: Authorization: Bearer <contractor_access_token>
+  Expected: 200
+  Result: Bids list (e.g. for Live Auction members)
+
+TC-BID-06 | Accept bid – USER (job owner), valid bidId (optional: final price/timeline from chat)
+  Method: POST
+  URL: {{base_url}}/job/:jobId/bid/:bidId/accept
+  Headers: Authorization: Bearer <user_access_token>, Content-Type: application/json
+  Body (optional): { "final_quote_price": 1500, "final_timeline_estimate": "2 weeks" }
+  Expected: 200
+  Result: Bid accepted; job closed; other bids rejected; if body sent, accepted bid’s price/timeline updated
+
+TC-BID-07 | Accept bid – CONTRACTOR (non-owner)
+  Method: POST
+  URL: {{base_url}}/job/:jobId/bid/:bidId/accept
+  Headers: Authorization: Bearer <contractor_access_token>
+  Expected: 403
+  Result: Only job owner can accept
+
+TC-BID-08 | Accept bid – already accepted job
+  Method: POST
+  URL: {{base_url}}/job/:jobId/bid/:otherBidId/accept
+  Headers: Authorization: Bearer <user_access_token>
+  (job already has accepted_bid_id)
+  Expected: 400
+  Result: Job already closed / bid already accepted
+
+TC-JOB-19 | Mark job completed – USER (owner), active job
+  Method: PATCH
+  URL: {{base_url}}/job/:jobId/mark-completed
+  Headers: Authorization: Bearer <user_access_token>
+  Expected: 200
+  Result: completed_at set; job in "completed" tab
+
+TC-JOB-20 | Mark job completed – non-owner
+  Method: PATCH
+  URL: {{base_url}}/job/:jobId/mark-completed
+  Headers: Authorization: Bearer <contractor_access_token>
+  Expected: 403
+  Result: Forbidden
+
+--------------------------------------------------------------------------------
+
+================================================================================
+6b. REVIEW (Give Review – completed job pe contractor ko rating + text)
+================================================================================
+
+TC-REV-01 | Give review – USER (job owner), completed job
+  Method: POST
+  URL: {{base_url}}/job/:jobId/review
+  Headers: Authorization: Bearer <user_access_token>, Content-Type: application/json
+  Body: { "rating": 5, "review_text": "Great work, very professional." }
+  Expected: 201
+  Result: Review created (rating 1-5, optional review_text); sirf job owner, job completed honi chahiye
+
+TC-REV-02 | Give review – already reviewed (400)
+  Method: POST
+  URL: {{base_url}}/job/:jobId/review
+  Headers: Authorization: Bearer <user_access_token>
+  Body: { "rating": 4 }
+  (job pe pehle se review di ho)
+  Expected: 400
+  Result: Already given review for this job
+
+TC-REV-03 | Give review – job not completed (400)
+  Method: POST
+  URL: {{base_url}}/job/:jobId/review
+  Headers: Authorization: Bearer <user_access_token>
+  Body: { "rating": 5 }
+  (job abhi mark-completed nahi hui)
+  Expected: 400
+  Result: Job must be marked as completed before giving a review
+
+TC-REV-04 | Get review – valid jobId
+  Method: GET
+  URL: {{base_url}}/job/:jobId/review
+  Headers: Authorization: Bearer <valid_token>
+  Expected: 200
+  Result: Review object if di hai, else null/empty
+
+--------------------------------------------------------------------------------
+
+================================================================================
+7. PRESIGNED URL
+================================================================================
+
+TC-PS-01 | Generate single presigned upload URL – valid
+  Method: POST
+  URL: {{base_url}}/presigned-url/upload-url
+  Headers: Authorization: Bearer <valid_token>, Content-Type: application/json
+  Body: { "file_name": "photo.jpg", "file_type": "image/jpeg" }
+  Expected: 200
+  Result: upload_url, view_url, file_key, file_name, expires_in
+
+TC-PS-02 | Generate single presigned URL – invalid file_type
+  Method: POST
+  URL: {{base_url}}/presigned-url/upload-url
+  Headers: Authorization: Bearer <valid_token>
+  Body: { "file_name": "script.exe", "file_type": "application/x-msdownload" }
+  Expected: 400
+  Result: Validation error (allowed types: image/*, video/*)
+
+TC-PS-03 | Generate multiple presigned URLs – valid
+  Method: POST
+  URL: {{base_url}}/presigned-url/upload-urls
+  Headers: Authorization: Bearer <valid_token>
+  Body: { "files": [ { "file_name": "a.jpg", "file_type": "image/jpeg" }, { "file_name": "b.mp4", "file_type": "video/mp4" } ] }
+  Expected: 200
+  Result: urls array with upload_url, view_url, file_key per file
+
+TC-PS-04 | Presigned URL – no token
+  Method: POST
+  URL: {{base_url}}/presigned-url/upload-url
+  Body: { "file_name": "photo.jpg", "file_type": "image/jpeg" }
+  Expected: 401
+  Result: Unauthorized
+
+--------------------------------------------------------------------------------
+
+================================================================================
+8. NOTIFICATIONS
+================================================================================
+
+TC-NOTIF-01 | Get all notifications – valid token
+  Method: GET
+  URL: {{base_url}}/notifications/
+  Headers: Authorization: Bearer <valid_token>
+  Expected: 200
+  Result: List of notifications for user
+
+TC-NOTIF-02 | Mark all as read
+  Method: PATCH
+  URL: {{base_url}}/notifications/read_all
+  Headers: Authorization: Bearer <valid_token>
+  Expected: 200
+  Result: All notifications marked read
+
+TC-NOTIF-03 | Mark single notification as read
+  Method: PATCH
+  URL: {{base_url}}/notifications/:notification_id
+  Headers: Authorization: Bearer <valid_token>
+  Expected: 200
+  Result: That notification marked read
+
+TC-NOTIF-04 | Get notifications – no token
+  Method: GET
+  URL: {{base_url}}/notifications/
+  Expected: 401
+  Result: Unauthorized
+
+--------------------------------------------------------------------------------
+
+================================================================================
+9. HELP AND FEEDBACK
+================================================================================
+
+TC-HF-01 | Send help and feedback – valid
+  Method: POST
+  URL: {{base_url}}/help_and_feedback/
+  Headers: Authorization: Bearer <valid_token>, Content-Type: application/json (or form-data per validation)
+  Body: { "subject": "Bug report", "message": "Description of issue" }
+  Expected: 200/201
+  Result: Feedback saved
+
+TC-HF-02 | Send help and feedback – missing subject
+  Method: POST
+  URL: {{base_url}}/help_and_feedback/
+  Headers: Authorization: Bearer <valid_token>
+  Body: { "message": "Only message" }
+  Expected: 400
+  Result: Validation error (subject required)
+
+TC-HF-03 | Get help and feedback list – valid token
+  Method: GET
+  URL: {{base_url}}/help_and_feedback/
+  Headers: Authorization: Bearer <valid_token>
+  Expected: 200
+  Result: List of user's feedback entries (or admin list if applicable)
+
+TC-HF-04 | Send help and feedback – no token
+  Method: POST
+  URL: {{base_url}}/help_and_feedback/
+  Body: { "subject": "S", "message": "M" }
+  Expected: 401
+  Result: Unauthorized
+
+--------------------------------------------------------------------------------
+
+================================================================================
+10. PUBLIC APIs (No Auth)
+================================================================================
+
+TC-PUB-01 | Get reasons – optional type
+  Method: GET
+  URL: {{base_url}}/public/reasons
+  Optional: ?type=USER
+  Expected: 200
+  Result: List of reasons
+
+TC-PUB-02 | Get categories
+  Method: GET
+  URL: {{base_url}}/public/categories
+  Expected: 200
+  Result: List of categories
+
+TC-PUB-03 | Get professions
+  Method: GET
+  URL: {{base_url}}/public/professions
+  Expected: 200
+  Result: List of professions
+
+TC-PUB-04 | Get nested professions
+  Method: GET
+  URL: {{base_url}}/public/professions/:profession_id
+  Expected: 200
+  Result: Nested professions for given id
+
+--------------------------------------------------------------------------------
+
+================================================================================
+11. ABOUT APP / PRIVACY POLICY / TERMS
+================================================================================
+
+TC-APP-01 | Get about app – no auth
+  Method: GET
+  URL: {{base_url}}/about-app/
+  Expected: 200
+  Result: About app content
+
+TC-APP-02 | Get privacy policy
+  Method: GET
+  URL: {{base_url}}/privacy_policy/
+  Expected: 200
+  Result: Privacy policy content
+
+TC-APP-03 | Get terms and conditions
+  Method: GET
+  URL: {{base_url}}/terms_and_conditions/
+  Expected: 200
+  Result: Terms content
+
+(Admin-only create endpoints: test with admin token for 200, with user token for 403.)
+
+--------------------------------------------------------------------------------
+
+================================================================================
+12. CHAT
+================================================================================
+
+TC-CHAT-01 | Get single chat – valid chat_id
+  Method: GET
+  URL: {{base_url}}/chat/:chat_id
+  Headers: Authorization: Bearer <valid_token>
+  Expected: 200
+  Result: Chat detail (if user is participant)
+
+TC-CHAT-02 | Get single chat – invalid chat_id
+  Method: GET
+  URL: {{base_url}}/chat/99999999
+  Headers: Authorization: Bearer <valid_token>
+  Expected: 404
+  Result: Chat not found
+
+TC-CHAT-03 | Get chat – no token
+  Method: GET
+  URL: {{base_url}}/chat/1
+  Expected: 401
+  Result: Unauthorized
+
+--------------------------------------------------------------------------------
+
+================================================================================
+13. SOCKET (Live Auction / Bids)
+================================================================================
+
+TC-SOCK-01 | Socket connect – with valid Bearer token
+  Action: Connect to socket_url with Socket.IO; handshake extra: Authorization: Bearer <access_token>
+  Expected: Connected; server sets socket.user_id, socket.user_type; client may receive "authenticated"
+
+TC-SOCK-02 | Socket connect – no token or invalid token
+  Action: Connect without Authorization or with invalid token
+  Expected: Disconnected / connection rejected (per socket_manager logic)
+
+TC-SOCK-03 | Join job room – valid jobId
+  Action: After connect, emit("join_job_room", { jobId: "<valid_job_id>" })
+  Expected: Server adds socket to room "job-room-<jobId>"; client receives "room_joined" and "auction_members" (current bids)
+
+TC-SOCK-04 | Join job room – invalid jobId
+  Action: emit("join_job_room", { jobId: "99999999" })
+  Expected: Error or empty auction_members (no such job)
+
+TC-SOCK-05 | Bid via socket – bid_submit (if implemented)
+  Action: emit("bid_submit", { jobId, quote_price, timeline_estimate, notes })
+  Expected: Server saves bid; io.to(room).emit("bid_received", bid); all in room get update
+
+TC-SOCK-06 | Accept bid via API – socket room receives bid_accepted
+  Action: User (in same room) calls POST /job/:jobId/bid/:bidId/accept
+  Expected: All sockets in room receive "bid_accepted" with accepted bid payload
+
+--------------------------------------------------------------------------------
+
+================================================================================
+14. USER DELETE / ADMIN (Optional)
+================================================================================
+
+TC-ADM-01 | Delete user (self)
+  Method: DELETE
+  URL: {{base_url}}/user/
+  Headers: Authorization: Bearer <valid_token>
+  Expected: 200
+  Result: User account deleted (per business logic)
+
+TC-ADM-02 | Get all users – admin only
+  Method: GET
+  URL: {{base_url}}/user/
+  Headers: Authorization: Bearer <admin_token>
+  Expected: 200
+  Result: List of users
+
+TC-ADM-03 | Get all users – non-admin
+  Method: GET
+  URL: {{base_url}}/user/
+  Headers: Authorization: Bearer <user_access_token>
+  Expected: 403
+  Result: Forbidden
+
+================================================================================
+                              END OF TEST CASES
+================================================================================
+
+Quick checklist:
+  [ ] Auth: register, verify_otp, login, forget/reset/change password, refresh, logout
+  [ ] User profile: create_user_profile, get/update profile, profile_picture, me, update_fcm
+  [ ] Contractor profile: create_contractor_profile, update profile
+  [ ] Job: create, get, update, delete, my-jobs (pending/active/completed), list
+  [ ] Bids: place bid, get bids by job, accept bid, my-bids (pending/active/past)
+  [ ] Job completion: mark-completed (owner only)
+  [ ] Presigned URL: single + multiple upload URLs, auth required
+  [ ] Notifications: get all, read_all, mark one read
+  [ ] Help & Feedback: send, get list
+  [ ] Public: reasons, categories, professions, nested professions
+  [ ] About / Privacy / Terms: get
+  [ ] Chat: get single chat
+  [ ] Socket: connect with token, join_job_room, bid_received, bid_accepted
+
+Reference docs: API_TESTING_GUIDE.txt, JOB_API_GUIDE.txt, BID_AND_SOCKET_GUIDE.txt,
+                 SERVICELINK_GUIDE.txt, CONTRACTOR_POSTMAN_GUIDE.txt

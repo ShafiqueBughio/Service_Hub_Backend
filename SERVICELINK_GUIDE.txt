@@ -1,0 +1,187 @@
+================================================================================
+                    SERVICELINK – MASTER GUIDE (Job, Bid, Socket, Flow)
+================================================================================
+
+base_url (API)  = http://localhost:3000/api/v1
+socket_url      = http://localhost:3000
+
+Sab job/bid APIs: Authorization: Bearer <access_token>
+
+================================================================================
+INDEX (is file me kya hai)
+================================================================================
+
+1. KONSI API KIS KE LIYE
+2. JOB + BID APIs (method, URL, body)
+3. USER FLOW (My Projects – Pending → Active → Completed)
+4. CONTRACTOR FLOW (List → Bid → Live Auction)
+5. SOCKET (connect, room, events)
+6. QUICK REFERENCE (JSON bodies)
+7. DETAIL KE LIYE (baaki guide files)
+
+================================================================================
+1. KONSI API KIS KE LIYE
+================================================================================
+
+USER (Job Owner):
+  POST   /job/create
+  GET    /job/my-jobs          (tab=pending | active | completed)
+  GET    /job/:jobId
+  PATCH  /job/:jobId
+  DELETE /job/:jobId
+  GET    /job/:jobId/bids
+  POST   /job/:jobId/bid/:bidId/accept
+  PATCH  /job/:jobId/mark-completed
+
+CONTRACTOR:
+  GET    /job/list             (Latest Jobs)
+  GET    /job/my-bids          (My Bids – tab=pending|active|past, type=REGULAR|LIVE)
+  GET    /job/:jobId
+  POST   /job/:jobId/bid
+  GET    /job/:jobId/bids
+
+DONO:
+  GET    /job/:jobId
+  GET    /job/:jobId/bids
+
+================================================================================
+2. JOB + BID APIs (Method, URL, Body)
+================================================================================
+
+CREATE JOB [USER]
+  POST {{base_url}}/job/create
+  Body: title, description, expire_days, min_budget, max_budget, timeline?, location?, provider_preferences?, attachments?
+  Note: job_type auto (max_budget <= 2000 = REGULAR, 2001+ = LIVE)
+
+GET MY JOBS (My Projects) [USER]
+  GET {{base_url}}/job/my-jobs?tab=pending|active|completed
+  tab=pending   → bid accept nahi hui
+  tab=active    → bid accept ho chuki, completed nahi
+  tab=completed → mark as completed ho chuka
+
+GET JOB BY ID [USER + CONTRACTOR]
+  GET {{base_url}}/job/:jobId
+
+UPDATE JOB [USER]
+  PATCH {{base_url}}/job/:jobId
+  Body: (optional) title, description, min_budget, max_budget, status, etc.
+
+DELETE JOB [USER]
+  DELETE {{base_url}}/job/:jobId
+
+LIST JOBS (Latest Jobs) [CONTRACTOR]
+  GET {{base_url}}/job/list?search=&location=&job_type=&limit=&offset=
+
+GET MY BIDS (My Bids – Regular / Live, Pending / Active / Past) [CONTRACTOR]
+  GET {{base_url}}/job/my-bids?tab=pending|active|past&type=REGULAR|LIVE
+  tab=pending → bid PENDING (user ne accept/reject nahi kiya)
+  tab=active  → bid ACCEPTED, project chal raha (completed nahi)
+  tab=past    → Rejected ya Completed
+  type=REGULAR | LIVE (optional)
+
+PLACE BID [CONTRACTOR]
+  POST {{base_url}}/job/:jobId/bid
+  Body: quote_price (required), timeline_estimate?, notes?, proposal_documents?
+
+GET BIDS BY JOB [USER + CONTRACTOR]
+  GET {{base_url}}/job/:jobId/bids
+
+ACCEPT BID [USER]
+  POST {{base_url}}/job/:jobId/bid/:bidId/accept
+  Body: none
+
+MARK AS COMPLETED [USER]
+  PATCH {{base_url}}/job/:jobId/mark-completed
+  Body: none
+
+================================================================================
+3. USER FLOW (My Projects)
+================================================================================
+
+Pending (bid accept nahi hui)
+  → My Projects tab: Pending
+  → Job pe tap → Job detail → Bidding Requests (bids list)
+  → Bid pe Accept → (optional) Project Detailed: Price + Timeline → Active me chala jata hai
+
+Active (bid accept ho chuki)
+  → My Projects tab: Active Project
+  → Job open → Contractor detail, Chat, Mark as Completed
+  → Mark as Completed → PATCH /job/:jobId/mark-completed → Completed tab me
+
+Completed
+  → My Projects tab: Completed Project
+  → Job open → Download All, Request Service (nayi job), Give Review
+
+================================================================================
+4. CONTRACTOR FLOW (Regular Bid + Live Bid)
+================================================================================
+
+--- REGULAR BID ---
+  Step 1: GET /job/list (Latest Jobs) → job cards (Regular Bidding tag)
+  Step 2: Job tap → GET /job/:jobId (detail) → "Place Your Bid"
+  Step 3: POST /job/:jobId/bid (quote_price, timeline_estimate, notes, proposal_documents)
+  Step 4: Thank You
+  Step 5: My Bids → Regular Bid → Pending: GET /job/my-bids?tab=pending&type=REGULAR
+  Step 6: User accept → Active: GET /job/my-bids?tab=active&type=REGULAR → job detail me Client, Decided Cost, Chat
+  Step 7: User reject → Past: GET /job/my-bids?tab=past&type=REGULAR → "Your Bid Rejected"
+  Step 8: User mark completed → Past me Completed → job detail me Client's Review
+
+--- LIVE BID ---
+  Step 1: GET /job/list?job_type=LIVE (Latest Jobs) → Live Auction tag
+  Step 2: Job tap → GET /job/:jobId → "Start Live Auction" / "Make new offer"
+  Step 3: socket emit("join_job_room", { jobId }) → room_joined, auction_members (bids list)
+  Step 4: POST /job/:jobId/bid ya socket bid_submit → Thank You; sab ko bid_received
+  Step 5: My Bids → Live Bid → Pending: GET /job/my-bids?tab=pending&type=LIVE
+  Step 6/7/8: Active / Past (Rejected / Completed) – same logic as Regular (GET /job/my-bids?tab=active|past&type=LIVE)
+
+Full steps + test order: CONTRACTOR_FLOW.txt dekho.
+
+================================================================================
+5. SOCKET
+================================================================================
+
+Connect:
+  socket_url = http://localhost:3000
+  Handshake: Authorization: Bearer <access_token> (extraHeaders ya auth.token)
+  Success: server emits "authenticated" { user_id, user_type } → loading band karo
+  Fail: server emits "error" + disconnect → error dikhao
+
+Live Auction Room:
+  Room: job-room-<jobId>
+  Client emit: join_job_room { jobId }
+  Server sends: room_joined, auction_members { jobId, bids, count }
+  Server sends: bid_received (nayi/updated bid), bid_accepted (owner ne accept kiya)
+
+Events (exact names):
+  join_job_room, room_joined, auction_members, bid_submit, bid_received, bid_accepted, error, authenticated
+
+================================================================================
+6. QUICK REFERENCE – JSON BODIES
+================================================================================
+
+Create Job:
+{"title":"My Project","description":"Description here","expire_days":3,"min_budget":5000,"max_budget":10000,"timeline":"2 Months","location":"NY, USA","provider_preferences":["Plumbing","Carpentry"],"attachments":[{"type":"pdf","url":"https://example.com/file.pdf"}]}
+
+Place Bid:
+{"quote_price":6000,"timeline_estimate":"2 weeks","notes":"Optional","proposal_documents":["https://example.com/proposal.pdf"]}
+
+Place Bid (minimal):
+{"quote_price":5500}
+
+Update Job (partial):
+{"title":"Updated Title","min_budget":6000,"max_budget":11000}
+
+================================================================================
+7. DETAIL KE LIYE (baaki guide files)
+================================================================================
+
+  COMPLETE_FLOW_WITH_API_AND_BODY.txt – User + Contractor pura flow ek jagah (start se end), har step pe API + Body
+  CONTRACTOR_FLOW.txt         – Contractor: Regular + Live bid flow step-by-step, My Bids tabs, test order
+  JOB_API_GUIDE.txt           – Job + Bid APIs full (Postman, validation, examples)
+  BID_AND_SOCKET_GUIDE.txt    – Socket flow detail, troubleshooting, event payloads
+  USER_MY_PROJECTS_FLOW.txt   – User flow step-by-step (screens, APIs)
+  CONTRACTOR_POSTMAN_GUIDE.txt – Contractor profile create (Postman body)
+  API_TESTING_GUIDE.txt       – User auth, register, login, etc.
+  TEST_CASES.txt              – Full manual/Postman test cases (Auth, User, Contractor, Job, Bid, Presigned URL, Notifications, Help/Feedback, Public, Chat, Socket)
+
+================================================================================

@@ -30,10 +30,12 @@ class UserController {
 
   login_user = async (req, res, next) => {
     try {
-      const { identifier, password, fcm_token } = req.body;
+      const { identifier, email, password, fcm_token } = req.body;
+      // Accept "email" from app if "identifier" not sent (same field for login)
+      const loginIdentifier = identifier || email;
 
       const data = await service.login_user({
-        identifier,
+        identifier: loginIdentifier,
         password,
         fcm_token,
       });
@@ -314,7 +316,7 @@ class UserController {
     try {
       const { user } = req.user;
 
-      await service.create_profile({
+      const data = await service.create_profile({
         user,
         data: {
           ...req.body,
@@ -325,7 +327,7 @@ class UserController {
       });
 
       const response = responses.ok_response(
-        null,
+        data,
         "Your profile created successfully."
       );
       return res.status(response.status.code).json(response);

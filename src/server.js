@@ -1,20 +1,19 @@
 /** @format */
 
 require("module-alias/register");
+require("dotenv").config();
 
-const env = require("dotenv");
-env.config();
+const http = require("http");
 const app = require("./app");
 const { logger } = require("@configs/logger");
+
 const SocketManager = require("@api/v1/socket/socket_manager");
 
-// worker threads
-require("../src/api/v1/workers/index.js");
+const server = http.createServer(app);
 
-const http_server = require("http").createServer(app);
+// init sockets
+new SocketManager(server);
 
-new SocketManager(http_server);
-
-http_server.listen(process.env.PORT, () => {
-  logger.info(`listening on http://localhost:${process.env.PORT}`);
+server.listen(process.env.PORT, () => {
+  logger.info(`Server running on http://localhost:${process.env.PORT}`);
 });

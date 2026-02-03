@@ -1,0 +1,123 @@
+================================================================================
+                    CONTRACTOR – POSTMAN GUIDE
+================================================================================
+
+base_url = http://localhost:3000/api/v1
+
+All contractor endpoints require: Authorization: Bearer <access_token>
+User must be logged in as CONTRACTOR (user_type: CONTRACTOR).
+
+================================================================================
+1. CREATE CONTRACTOR PROFILE
+================================================================================
+
+POST {{base_url}}/user/create_contractor_profile
+
+Headers:
+  Authorization: Bearer <access_token>
+  Content-Type: application/json
+
+Body (raw JSON) – sab fields yahi format me:
+
+{
+  "first_name": "Dashti",
+  "last_name": "Khan",
+  "address": "New York",
+  "city": "New York",
+  "state": "NY",
+  "contact_phone": "+1234567890",
+  "gender": "MALE",
+  "profile_picture": "https://your-bucket.s3.region.amazonaws.com/profiles/abc.jpg",
+  "about": "Professional contractor",
+  "services": ["Carpentry", "Plumbing"],
+  "experiences": [
+    {
+      "company": "ABC Corp",
+      "job_type": "Full-time",
+      "designation": "Engineer",
+      "start_year": "2020",
+      "end_year": "2023"
+    }
+  ],
+  "service_areas": [
+    {
+      "location": "NYC",
+      "latitude": "40.7128",
+      "longitude": "-74.0060"
+    }
+  ],
+  "business_license": "url_after_upload",
+  "certifications": ["url1", "url2"],
+  "portfolio_images": ["url1", "url2"]
+}
+
+--------------------------------------------------------------------------------
+Field rules (validation)
+--------------------------------------------------------------------------------
+
+Required:
+  first_name       string
+  last_name        string
+  address          string
+  city             string
+  state            string
+  contact_phone    string
+  gender           "MALE" | "FEMALE" | "OTHER"
+  services         array of strings, min 1 item (e.g. ["Carpentry", "Plumbing"])
+
+Optional:
+  profile_picture  string (URL – use presigned URL upload first)
+  about            string
+  experiences      array of {
+    company, job_type, designation, start_year, end_year  (all strings)
+  }
+  service_areas    array of {
+    location, latitude, longitude  (all strings)
+  }
+  business_license string (URL after upload)
+  certifications   array of strings (URLs after upload)
+  portfolio_images array of strings (URLs after upload)
+
+--------------------------------------------------------------------------------
+Minimal body (required only)
+--------------------------------------------------------------------------------
+
+{
+  "first_name": "Dashti",
+  "last_name": "Khan",
+  "address": "New York",
+  "city": "New York",
+  "state": "NY",
+  "contact_phone": "+1234567890",
+  "gender": "MALE",
+  "services": ["Carpentry", "Plumbing"]
+}
+
+--------------------------------------------------------------------------------
+Copy-paste ready (full example, optional fields included)
+--------------------------------------------------------------------------------
+
+{"first_name":"Dashti","last_name":"Khan","address":"New York","city":"New York","state":"NY","contact_phone":"+1234567890","gender":"MALE","profile_picture":"https://your-bucket.s3.region.amazonaws.com/profiles/abc.jpg","about":"Professional contractor","services":["Carpentry","Plumbing"],"experiences":[{"company":"ABC Corp","job_type":"Full-time","designation":"Engineer","start_year":"2020","end_year":"2023"}],"service_areas":[{"location":"NYC","latitude":"40.7128","longitude":"-74.0060"}],"business_license":"url_after_upload","certifications":["url1","url2"],"portfolio_images":["url1","url2"]}
+
+================================================================================
+2. PROFILE PICTURE / FILES (optional)
+================================================================================
+
+- Use Presigned URL API first: POST {{base_url}}/presigned-url/upload-url
+  Body: { "file_name": "photo.jpg", "content_type": "image/jpeg", "folder": "profiles" }
+  Response gives upload URL; upload file there, then use the returned key/URL in
+  profile_picture, business_license, certifications, portfolio_images.
+
+- create_contractor_profile accepts these as strings (URLs or S3 keys).
+
+================================================================================
+3. QUICK REFERENCE
+================================================================================
+
+URL:    POST {{base_url}}/user/create_contractor_profile
+Auth:   Bearer <access_token>
+Type:   raw JSON
+Body:   See full JSON above (first_name, last_name, address, city, state,
+        contact_phone, gender required; services min 1; rest optional).
+
+================================================================================

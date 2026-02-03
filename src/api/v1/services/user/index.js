@@ -64,7 +64,9 @@ class UserService {
         },
       },
     };
-    data[`${identifier_type}`] = identifier;
+    // Store email lowercase so login lookup (case-insensitive) always finds
+    const value = typeof identifier === "string" ? identifier.trim() : identifier;
+    data[identifier_type] = identifier_type === "email" ? value.toLowerCase() : value;
 
     let user;
     if (!already_user) {
@@ -109,7 +111,7 @@ class UserService {
     };
   };
 
-  //Login User
+  //Login User – allow login after register even if OTP not verified yet
   login_user = async ({ identifier, password, fcm_token }) => {
     const identifier_type = helper.validate_identifier(identifier);
     const already_user = await helper.get_already_user({
@@ -117,10 +119,7 @@ class UserService {
       identifier_type,
     });
 
-    if (
-      !already_user ||
-      (!already_user.is_email_verified && !already_user.is_phone_verified)
-    ) {
+    if (!already_user) {
       throw responses.bad_request_response(
         `This email is not associated with any user`
       );
@@ -144,10 +143,14 @@ class UserService {
       fcm_token,
     });
 
+    // Same user data as get profile (user_details, contractor_profile, etc.)
+    const { db_user } = await this.get_user_profile({ id: already_user.id });
+
     return {
       access_token,
       refresh_token,
       is_profile_completed: already_user.is_completed,
+      user: db_user,
     };
   };
 
@@ -468,6 +471,22 @@ class UserService {
       throw responses.bad_request_response("Profile not found. Please create profile first.");
     }
     await prisma.$transaction(async (tx) => {
+      // Extract file key from URL if full URL is provided
+      let profile_picture = data.profile_picture;
+      if (profile_picture && profile_picture.includes('?')) {
+        // Extract file key from presigned URL
+        try {
+          const url = new URL(profile_picture);
+          profile_picture = url.pathname.substring(1); // Remove leading slash
+        } catch (e) {
+          // If URL parsing fails, try to extract path manually
+          const match = profile_picture.match(/\/uploads\/[^?]+/);
+          if (match) {
+            profile_picture = match[0].substring(1); // Remove leading slash
+          }
+        }
+      }
+
       //updating user details - only update provided fields
       const userDetailsData = {};
       if (data.first_name !== undefined) userDetailsData.first_name = data.first_name;
@@ -475,8 +494,9 @@ class UserService {
       if (data.address !== undefined) userDetailsData.address = data.address;
       if (data.city !== undefined) userDetailsData.city = data.city;
       if (data.state !== undefined) userDetailsData.state = data.state;
+      if (data.contact_phone !== undefined) userDetailsData.contact_phone = data.contact_phone;
       if (data.gender !== undefined) userDetailsData.gender = data.gender;
-      if (data.profile_picture !== undefined) userDetailsData.profile_picture = data.profile_picture;
+      if (data.profile_picture !== undefined) userDetailsData.profile_picture = profile_picture;
 
       if (Object.keys(userDetailsData).length > 0) {
         await helper.update_user_details({
@@ -568,6 +588,22 @@ class UserService {
       throw responses.bad_request_response("Profile already created.");
     }
     await prisma.$transaction(async (tx) => {
+      // Extract file key from URL if full URL is provided
+      let profile_picture = data.profile_picture || null;
+      if (profile_picture && profile_picture.includes('?')) {
+        // Extract file key from presigned URL
+        try {
+          const url = new URL(profile_picture);
+          profile_picture = url.pathname.substring(1); // Remove leading slash
+        } catch (e) {
+          // If URL parsing fails, try to extract path manually
+          const match = profile_picture.match(/\/uploads\/[^?]+/);
+          if (match) {
+            profile_picture = match[0].substring(1); // Remove leading slash
+          }
+        }
+      }
+
       // Common user details for both USER and CONTRACTOR
       const userDetailsData = {
         first_name: data.first_name,
@@ -577,7 +613,7 @@ class UserService {
         gender: data.gender,
         address: data.address,
         contact_phone: data.contact_phone,
-        profile_picture: data.profile_picture || null, // Optional
+        profile_picture: profile_picture,
         user_id: user.id,
       };
 
@@ -635,6 +671,22 @@ class UserService {
 
       await this.mark_profile_completed({ id: user.id, tx });
     });
+
+    // Return login-style response (access_token, refresh_token, is_profile_completed, user)
+    const updated_user = await helper.get_already_user({
+      find_user_obj: { id: user.id },
+    });
+    const { access_token, refresh_token } = await helper.create_user_session({
+      user: updated_user,
+      fcm_token: data.fcm_token || null,
+    });
+    const { db_user } = await this.get_user_profile({ id: user.id });
+    return {
+      access_token,
+      refresh_token,
+      is_profile_completed: true,
+      user: db_user,
+    };
   };
 
   //Get All Users
