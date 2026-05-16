@@ -4,6 +4,7 @@ const { prisma } = require("@configs/prisma");
 const UserServiceHelpers = require("@api/v1/helpers/user_service_helper");
 const TokenService = require("@api/v1/services/token");
 const Responses = require("@constants/responses");
+const send_email = require("@configs/email");
 
 const responses = new Responses();
 const helper = new UserServiceHelpers();
@@ -45,7 +46,9 @@ class UserService {
 
     // Generate OTP first (before saving to DB)
     const otp = helper.generate_random_numeric_code({ length: 6 });
+    console.log("Generated OTP:", otp, typeof otp); // debug
     const _exp = new Date(new Date().getTime() + 30 * 1000).toISOString(); // 30 seconds expiry
+
 
     // Hash password
     const hashed_password = await helper.hash_password({
@@ -72,21 +75,46 @@ class UserService {
 
     const user = await prisma.users.create({
       data,
-      include: { user_secrets: true },
     });
 
-    // Generate tokens
-    const { access_token, refresh_token } = await helper.create_user_session({
-      user,
-      fcm_token,
-    });
+      // Send OTP email
+  if (identifier_type === "email") {
+    try {
+      await send_email({
+        from: `Service Hub <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
+        to: normalized_identifier,
+        subject: "Your OTP Code - Service Hub",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #333;">Verify Your Account</h2>
+            <p style="color: #555;">
+              Use the OTP below to verify your account. It expires in <strong>30 seconds</strong>.
+            </p>
+
+            <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; text-align: center; padding: 16px 0;">
+              ${otp}
+            </div>
+
+            <p style="color: #999; font-size: 12px;">
+              If you did not request this, please ignore this email.
+            </p>
+          </div>
+        `,
+      });
+    } catch (emailError) {
+      // rollback user if email fails
+      await prisma.users.delete({
+        where: { id: user.id },
+      });
+
+      throw emailError;
+    }
+  }
 
     return {
-      otp,
-      user,
-      access_token,
-      refresh_token,
+      user
     };
+    
   };
 
   //Login User – allow login after register even if OTP not verified yet
