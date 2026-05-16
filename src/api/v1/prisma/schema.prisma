@@ -54,10 +54,12 @@ model users {
   blocked_user           block_user[]        @relation("blocked_user")
   blocked_by             block_user[]        @relation("blocked_by")
   jobs                   Job[]
-  jobs_invited           Job[]  @relation("JobInvitedContractor") // Request Service – in contractor k pending me
-  bids                   Bid[]  // bids placed as contractor
-  reviews_given          Review[] @relation("reviews_given")
-  reviews_received       Review[] @relation("reviews_received")
+  jobs_invited           Job[]               @relation("JobInvitedContractor") // Request Service – in contractor k pending me
+  bids                   Bid[] // bids placed as contractor
+  reviews_given          Review[]            @relation("reviews_given")
+  reviews_received       Review[]            @relation("reviews_received")
+  chat_messages_sent     ChatMessage[]       @relation("chat_sent")
+  chat_messages_received ChatMessage[]       @relation("chat_received")
 
   created_at DateTime @default(now()) @db.Timestamp(0)
   updated_at DateTime @updatedAt
@@ -328,42 +330,77 @@ model Job {
   status JobStatus @default(OPEN)
 
   accepted_bid_id       String?   @unique // set when owner accepts one bid
-  completed_at         DateTime? // set when user marks as completed
-  invited_contractor_id String?   // user "Request Service" from completed job – ye job is contractor k pending me jata he
+  is_completed          Boolean   @default(false) // user mark as completed → true
+  is_cancelled          Boolean   @default(false) // job cancel → true
+  invited_contractor_id String? // user "Request Service" from completed job – ye job is contractor k pending me jata he
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
   // Relations
-  user               users  @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  invited_contractor users? @relation("JobInvitedContractor", fields: [invited_contractor_id], references: [id], onDelete: SetNull)
+  user               users   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  invited_contractor users?  @relation("JobInvitedContractor", fields: [invited_contractor_id], references: [id], onDelete: SetNull)
   bids               Bid[]
-  accepted_bid       Bid?   @relation("JobAcceptedBid", fields: [accepted_bid_id], references: [id])
+  accepted_bid       Bid?    @relation("JobAcceptedBid", fields: [accepted_bid_id], references: [id])
   review             Review?
+  chat               Chat?   // ek job = ek chat room (user + accepted contractor); sirf active job pe chat
 
   @@index([user_id])
   @@index([invited_contractor_id])
   @@map("jobs")
 }
 
-model Bid {
-  id         String    @id @default(uuid())
-  job_id     String
-  contractor_id String  // user who placed the bid
+// Chat = ek job ke liye ek room (job owner + accepted bid contractor). Sirf ACTIVE job pe message bhej sakte; completed pe read-only.
+model Chat {
+  id        String   @id @default(uuid())
+  job_id    String   @unique
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  quote_price      Float     // quotation price
-  timeline_estimate String?  // e.g. "2 weeks"
-  notes            String?   @db.LongText
-  proposal_documents Json?  // array of file URLs (from presigned uploads)
+  job    Job           @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@map("chats")
+}
+
+model ChatMessage {
+  id         String   @id @default(uuid())
+  chat_id    String
+  sender_id  String
+  recipient_id String? // other participant (job owner ya contractor)
+  message    String?  @db.LongText
+  attachment String?  @db.Text
+  is_read    Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+
+  chat     Chat   @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+  sender   users  @relation("chat_sent", fields: [sender_id], references: [id], onDelete: Cascade)
+  recipient users? @relation("chat_received", fields: [recipient_id], references: [id], onDelete: SetNull)
+
+  @@index([chat_id])
+  @@index([sender_id])
+  @@map("chat_messages")
+}
+
+model Bid {
+  id            String @id @default(uuid())
+  job_id        String
+  contractor_id String // user who placed the bid
+
+  quote_price        Float // quotation price
+  timeline_estimate  String? // e.g. "2 weeks"
+  notes              String? @db.LongText
+  proposal_documents Json? // array of file URLs (from presigned uploads)
 
   status BidStatus @default(PENDING)
+  reject_reason String? @db.Text // user reject kare to reason (Past → Rejected screen pe dikhega)
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  job        Job  @relation(fields: [job_id], references: [id], onDelete: Cascade)
-  contractor users @relation(fields: [contractor_id], references: [id], onDelete: Cascade)
-  job_accepted Job? @relation("JobAcceptedBid")
+  job          Job   @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  contractor   users @relation(fields: [contractor_id], references: [id], onDelete: Cascade)
+  job_accepted Job?  @relation("JobAcceptedBid")
 
   @@index([job_id])
   @@index([contractor_id])
@@ -372,12 +409,12 @@ model Bid {
 
 // User (job owner) gives review for completed job – rating + review text (Give Review screen)
 model Review {
-  id            String   @id @default(uuid())
-  job_id        String   @unique
-  reviewer_id   String   // job owner (user) who gives review
-  contractor_id String   // contractor who did the job (accepted bid)
+  id            String @id @default(uuid())
+  job_id        String @unique
+  reviewer_id   String // job owner (user) who gives review
+  contractor_id String // contractor who did the job (accepted bid)
 
-  rating      Int     // 1-5 stars
+  rating      Int // 1-5 stars
   review_text String? @db.Text
 
   created_at DateTime @default(now()) @db.Timestamp(0)

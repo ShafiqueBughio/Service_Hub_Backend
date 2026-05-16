@@ -8,6 +8,96 @@ socket_url = http://localhost:3000
 Sab APIs: Authorization: Bearer <access_token> (contractor ka token)
 
 ================================================================================
+PENDING KA MATLAB (User vs Contractor – smje)
+================================================================================
+
+  USER ka pending      = Jo jobs pe abhi BID LAG RAHI HAI (contractors bid de rahe hain, user ne accept nahi kiya).
+  CONTRACTOR ka pending = Jo jobs jahan USER NE REQUEST KIYA HAI (Request Service / invited) – ye hi contractor k "Pending" me aate hain.
+
+================================================================================
+OVERVIEW (Contractor ke 2 bid types – screenshot flow)
+================================================================================
+
+Contractor ke do bid types: REGULAR BID | LIVE BID.
+
+Har type me 3 sub-tabs: Pending Bid | Active Bid | Past Bid.
+
+REGULAR BID:
+  - Pending: Jahan user ne is contractor ko REQUEST kiya (Request Service – invited_contractor_id). By id job get karke sub detail. (Agar contractor ne kisi aur open job pe bid lagayi ho to wo bhi isi list me aa sakti hai.)
+  - Active: Jo bids accept ho chuki hain – job is_completed false, is_cancelled false – project chal raha; user–contractor chat kar sakte hain.
+  - Past: Cancelled (user ne reject kiya – reason b de sakta hai), job is_cancelled, ya Completed (job is_completed, client review de sakta hai).
+
+LIVE BID:
+  - Pending: Jahan user ne request kiya (invited) + contractor offer de sakta hai; "Make new offer" pe ja kar naya offer de sakta hai.
+  - Active: Same as Regular – bid accepted, project ongoing, chat.
+  - Past: Same as Regular – Rejected (reason) ya Completed (review).
+
+Request Service: User completed job se "Request Service" kare to wo nayi job us contractor k PENDING me aati hai (invited_contractor_id).
+
+================================================================================
+PENDING ME JOB AA GAYI – AB CONTRACTOR KYA KARE (Simple)
+================================================================================
+
+User ne Service Request ki, job contractor k Pending me aa chuki. Ab sirf ye karo:
+
+  Step 1 – Pending list me us job pe tap karo (ya job ka ID le lo).
+  Step 2 – Job detail kholo:  GET {{base_url}}/job/:jobId
+
+  Step 3 – BID LAGAO (job REGULAR hai ya LIVE – is hisaab se):
+
+     AGAR JOB REGULAR HAI (Regular Bid → Pending):
+        → "Place Your Bid" / form kholo.
+        → API:  POST {{base_url}}/job/:jobId/bid
+        → Body:  { "quote_price": 7000, "timeline_estimate": "Within 40 days", "notes": "...", "proposal_documents": [] }
+        → Submit. Ho gaya. Ab user accept/reject karega.
+
+     AGAR JOB LIVE HAI (Live Bid → Pending):
+        → "Start Live Auction" / "Place Your Offer" pe jao.
+        → Socket:  join_job_room { jobId }  phir  bid_submit { jobId, quotePrice: 6000, timeline: "...", note: "..." }
+        → YA same API:  POST {{base_url}}/job/:jobId/bid  with  { "quote_price": 6000, "timeline_estimate": "..." }
+        → Submit. Ho gaya. Ab user accept/reject karega.
+
+  Step 4 – User jab accept karega to job Active me chali jayegi; reject karega to Past me Rejected dikhegi.
+
+Short: Pending me job hai → job open karo → bid lagao (Regular = simple form/API, Live = socket ya API) → user accept/reject karega.
+
+================================================================================
+SERVICE REQUEST FLOW – User request kare → Contractor bid (Regular / Live) → User Accept / Reject
+================================================================================
+
+1. USER: Service Request (Request Service)
+   - User job create karta hai body me invited_contractor_id = us contractor ka user ID (jise kaam dena hai).
+   - job_type REGULAR ya LIVE bhej sakta hai: REGULAR = contractor simple bid karega; LIVE = contractor live bid (socket) karega.
+   - API: POST {{base_url}}/job/create
+   - Body: { "job_type": "REGULAR", "title": "...", "description": "...", "invited_contractor_id": "<contractor-user-uuid>", ... }
+   - Ye job jobs table me create hoti hai; contractor ko isi se Pending me dikhegi.
+
+2. CONTRACTOR: Pending me job dikhti hai
+   - GET {{base_url}}/job/my-bids?tab=pending&type=REGULAR  → Regular Request Service wali jobs.
+   - GET {{base_url}}/job/my-bids?tab=pending&type=LIVE     → Live Request Service wali jobs.
+   - Entry me invited_only: true ho sakta hai (abhi bid nahi lagayi).
+
+3a. REGULAR pending: Contractor simple bid deta hai
+   - Job detail: GET {{base_url}}/job/:jobId
+   - Place Bid: POST {{base_url}}/job/:jobId/bid
+   - Body: { "quote_price": 7000, "timeline_estimate": "Within 40 days", "notes": "...", "proposal_documents": ["url1"] }
+   - User is bid ko ACCEPT ya REJECT karega.
+
+3b. LIVE pending: Contractor live bid (socket) se offer deta hai
+   - Job detail: GET {{base_url}}/job/:jobId
+   - Socket: join_job_room { jobId } → phir bid_submit { jobId, quotePrice, timeline, note, proposal_documents }
+   - Ya API bhi chalegi: POST {{base_url}}/job/:jobId/bid (same body). "Make new offer" = dubara POST with new quote_price.
+   - User is bid ko ACCEPT ya REJECT karega.
+
+4. USER: Accept ya Reject
+   - Bids dekhne: GET {{base_url}}/job/:jobId/bids
+   - Accept: POST {{base_url}}/job/:jobId/bid/:bidId/accept
+     Body (optional): { "final_quote_price": 5000, "final_timeline_estimate": "50 days" }
+   - Reject: POST {{base_url}}/job/:jobId/bid/:bidId/reject
+     Body (optional): { "reason": "We went with another offer." }
+   - Dono (Regular aur Live) me user accept/reject same API se karta hai.
+
+================================================================================
 CONTRACTOR SCREENS (screenshot ke hisaab se)
 ================================================================================
 
@@ -46,7 +136,7 @@ Step 4 – Thank You
 
 Step 5 – My Bids (Regular Bid → Pending)
   API: GET {{base_url}}/job/my-bids?tab=pending&type=REGULAR
-  Screen: "Regular Bid" tab, "Pending Bid" selected – list of jobs jahan contractor ne bid lagayi, abhi accept/reject nahi hua.
+  Screen: "Regular Bid" tab, "Pending Bid" selected – list me (1) jahan contractor ne bid lagayi (abhi accept/reject nahi), (2) jahan user ne "Request Service" ki (invited_contractor_id = is contractor) lekin abhi bid nahi lagayi – in entries me invited_only: true aata hai, id null ho sakta hai.
 
 Step 6 – My Bid detail (card pe tap)
   API: GET {{base_url}}/job/:jobId (same job) + contractor apna bid GET /job/:jobId/bids me apna entry dekh sakta (contractor_id match)
@@ -61,16 +151,17 @@ Step 7 – My Bids (Regular Bid → Active)
 Step 8 – Active project detail (card pe tap)
   API: GET {{base_url}}/job/:jobId
   Screen: Client (Alex Murphy), Chat icon, Active, Project ID, Project Decided Cost ($5,000), Decided Timeline (50 Days), Download All.
+  Chat: Message icon pe tap → GET {{base_url}}/chat/by-job/:jobId → us job k hisab se room. Detail: CHAT_FLOW.txt (completed job pe message nahi bhej sakte).
 
---- Agar user REJECT kare ---
+--- Agar user REJECT kare (User side: Reject Bid API + reason) ---
 
 Step 7b – My Bids (Regular Bid → Past)
   API: GET {{base_url}}/job/my-bids?tab=past&type=REGULAR
-  Screen: "Past Bid" – "Rejected" tag.
+  Screen: "Past Bid" – "Rejected" tag. Har bid me reject_reason (user ne diya ho to) response me aata hai.
 
 Step 8b – Bid Rejected detail (card pe tap)
-  API: GET {{base_url}}/job/:jobId
-  Screen: "Your Bid Rejected by User" banner, job detail, My Bid section me Reject Reason (agar API me reject_reason aata ho).
+  API: GET {{base_url}}/job/:jobId  + contractor apna bid GET /job/:jobId/bids se dekh sakta (status REJECTED, reject_reason)
+  Screen: "Your Bid Rejected by User" banner, job detail, My Bid section me "Reject Reason" – reject_reason API se aata hai (GET my-bids ya job detail me).
 
 --- Job complete (user Mark as Completed) ---
 
@@ -106,6 +197,12 @@ Step 4 – Place bid (API ya socket)
   Screen: Offer enter karo → "Place Your Offer" / Submit.
   Real-time: Sab ko "bid_received" event; list update.
 
+Step 4b – Make new offer (Live pending me naya offer dena)
+  Same API: POST {{base_url}}/job/:jobId/bid
+  Body: { "quote_price": 5500, "timeline_estimate": "Within 25 days" }  (nayi amount / timeline)
+  Backend: Agar is contractor ki us job pe pehle se PENDING bid hai to wo UPDATE ho jati hai (nayi quote_price, timeline); nayi row nahi banti. Isi ko "Make new offer" kaam karta hai.
+  Screen: "Make new offer" button → form me nayi amount daalo → Submit → Thank You / list update.
+
 Step 5 – Thank You (same as Regular)
   Screen: Thank You → Continue.
 
@@ -138,6 +235,8 @@ Examples:
   GET {{base_url}}/job/my-bids                           – Saari contractor ki bids
 
 Response: Array of bids; har bid me job (title, description, job_type, user/client, etc.) include hai.
+  - Pending tab: "Request Service" wali jobs bhi aati hain jahan contractor ne abhi bid nahi lagayi – un me invited_only: true, id null, status "PENDING".
+  - Past / Rejected bids me reject_reason (string | null) aata hai – user ne POST .../reject karte waqt reason diya ho to.
 
 ================================================================================
 QUICK TEST ORDER (ek baar me run karke dekh lo)
@@ -170,5 +269,28 @@ SUMMARY TABLE
 | My Bids – Live – Past       | GET /job/my-bids?tab=past&type=LIVE |
 | Live Auction (join)        | socket emit join_job_room { jobId } |
 | Live (place offer)         | POST /job/:jobId/bid ya socket bid_submit |
+| User rejects bid (reason)  | USER: POST /job/:jobId/bid/:bidId/reject { "reason": "..." } (optional) |
 
 ================================================================================
+REJECT BID (User side – contractor flow me impact)
+================================================================================
+
+User jab contractor ki bid reject karta hai to ye API use hoti hai (job owner only):
+  POST {{base_url}}/job/:jobId/bid/:bidId/reject
+  Body (optional): { "reason": "We went with another contractor." }
+
+Contractor ko:
+  - My Bids → Past me wo bid "Rejected" dikhegi.
+  - Bid detail / job detail me reject_reason dikhana chahiye (GET my-bids response me har bid me reject_reason aata hai).
+
+================================================================================
+SERVICE REQUEST FLOW – QUICK TABLE
+================================================================================
+
+| Step | Who    | Kya karein | API / Action |
+|------|--------|------------|--------------|
+| 1    | User   | Service Request (job create + invite contractor) | POST /job/create { invited_contractor_id, job_type: "REGULAR" ya "LIVE" } |
+| 2    | Contractor | Pending me job dekho | GET /job/my-bids?tab=pending&type=REGULAR ya type=LIVE |
+| 3a   | Contractor | REGULAR: simple bid do | POST /job/:jobId/bid { quote_price, timeline_estimate, ... } |
+| 3b   | Contractor | LIVE: live bid do | socket join_job_room → bid_submit (ya POST /job/:jobId/bid) |
+| 4    | User   | Bids dekho, ek accept ya reject | GET /job/:jobId/bids → POST .../bid/:bidId/accept ya POST .../bid/:bidId/reject |================================================================================

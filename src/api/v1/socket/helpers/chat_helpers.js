@@ -73,16 +73,34 @@ class ChatHelper {
     io,
   }) => {
     try {
+      const user_id = socket?.user_id;
+      if (!user_id) {
+        socket?.emit("error", { message: "Handshake required" });
+        return;
+      }
+      const ChatService = require("@api/v1/services/chat");
+      const chat_service = new ChatService();
+      const saved = await chat_service.save_message({
+        chat_id,
+        sender_id: user_id,
+        recipient_id,
+        message,
+        attachment,
+      });
       const roomName = `private-chat-${chat_id}`;
       if (io) {
-        socket.to(roomName).emit("private_message", {
-          message,
-          attachment,
-          sender_id: socket.user_id,
+        io.to(roomName).emit("private_message", {
+          id: saved.id,
+          message: saved.message,
+          attachment: saved.attachment,
+          sender_id: saved.sender_id,
+          sender: saved.sender,
           chat_id,
           job_id,
+          created_at: saved.created_at,
         });
       }
+      socket?.emit("private_message_success", "Message sent.");
     } catch (error) {
       console.error("send_private_message:", error?.message);
       socket?.emit("error", { message: error?.message || "Failed to send message" });

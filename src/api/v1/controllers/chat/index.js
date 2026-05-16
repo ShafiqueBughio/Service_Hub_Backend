@@ -14,7 +14,28 @@ class ChatController {
 
       const response = responses.ok_response(
         data,
-        "Successfully received chat "
+        "Successfully received chat."
+      );
+
+      return res.status(response.status.code).json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  get_chat_by_job = async (req, res, next) => {
+    try {
+      const { jobId } = req.params;
+      const { user } = req.user;
+
+      const data = await service.get_or_create_chat_by_job({
+        job_id: jobId,
+        user_id: user.id,
+      });
+
+      const response = responses.ok_response(
+        data,
+        "Chat room for this job."
       );
 
       return res.status(response.status.code).json(response);

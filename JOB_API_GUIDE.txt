@@ -18,9 +18,13 @@ USER (Job Owner – jo job post karta hai):
   5. DELETE JOB         DELETE /job/:jobId
   8. GET BIDS BY JOB    GET    /job/:jobId/bids   (sari bids dekhne)
   9. ACCEPT BID         POST   /job/:jobId/bid/:bidId/accept
- 10. MARK AS COMPLETED  PATCH  /job/:jobId/mark-completed
+  9b. REJECT BID        POST   /job/:jobId/bid/:bidId/reject   (reason optional – contractor ko Past me reject_reason dikhega)
+ 10. MARK AS COMPLETED  PATCH  /job/:jobId/mark-completed   (is_completed = true, date nahi)
+ 10b. CANCEL JOB        PATCH  /job/:jobId/cancel         (is_cancelled = true)
  11. GIVE REVIEW        POST   /job/:jobId/review   (completed job pe contractor ko review)
- 12. GET REVIEW        GET    /job/:jobId/review
+ 12. GET REVIEW         GET    /job/:jobId/review   (review by job id)
+ 12b. GET MY REVIEWS    GET    /job/reviews         (contractor – saari ratings list, konse job pe konsa rating)
+ 12c. GET REVIEW BY ID   GET    /job/review/:reviewId  (us review ka user + project full detail)
 
 CONTRACTOR (jo bid lagata hai):
   3. GET JOB BY ID      GET    /job/:jobId        (job detail + Place Your Bid)
@@ -32,6 +36,10 @@ CONTRACTOR (jo bid lagata hai):
 DONO (User + Contractor dono use kar sakte):
   3. GET JOB BY ID      GET    /job/:jobId
   8. GET BIDS BY JOB    GET    /job/:jobId/bids
+
+CHAT (sirf ACTIVE job – completed pe message nahi bhej sakte):
+  GET /chat/by-job/:jobId   – Us job ke liye room get/create (message icon from active job). Response me chat_allowed (false = completed, send block).
+  GET /chat/:chat_id        – Chat + messages. Detail: CHAT_FLOW.txt
 
 ================================================================================
 1. CREATE JOB  [ USER only – Job owner ]
@@ -73,7 +81,17 @@ Notes:
 - min_budget must be <= max_budget
 - provider_preferences: optional array of strings (e.g. skills/categories)
 - attachments: optional; use presigned URLs from /presigned-url/upload-url
-- invited_contractor_id: optional (UUID). Jab user completed job se "Request Service" kare aur usi contractor ko dubara kaam dena ho – yahan wo contractor ka user id bhejo. Ye job us contractor k "Pending" / "Requests for me" me dikhegi.
+- invited_contractor_id: optional (UUID). Jab user "Request Service" kare (usi contractor ko kaam dena ho) – yahan contractor ka user id bhejo. Ye job us contractor k Pending me dikhegi.
+- job_type: "REGULAR" bhejo to contractor Pending (Regular) me simple bid karega (POST /job/:jobId/bid). "LIVE" bhejo to contractor Pending (Live) me live bid karega (socket join_job_room + bid_submit). User dono me accept/reject kar sakta hai.
+
+================================================================================
+SERVICE REQUEST FLOW (short)
+================================================================================
+User: POST /job/create with invited_contractor_id + job_type (REGULAR | LIVE).
+Contractor: GET /job/my-bids?tab=pending&type=REGULAR ya type=LIVE → job dikhegi.
+  - REGULAR pending → contractor POST /job/:jobId/bid (simple bid). User accept/reject.
+  - LIVE pending   → contractor socket (join_job_room, bid_submit) ya POST /job/:jobId/bid. User accept/reject.
+User: GET /job/:jobId/bids → Accept: POST /job/:jobId/bid/:bidId/accept | Reject: POST /job/:jobId/bid/:bidId/reject.
 
 ================================================================================
 2. GET MY JOBS (My Projects list)  [ USER only – Job owner ]
@@ -81,10 +99,11 @@ Notes:
 
 GET {{base_url}}/job/my-jobs
 
-Query (optional) – My Projects tabs:
-  tab = pending   → jobs jisme bid abhi accept nahi hui (OPEN)
-  tab = active    → jobs jisme bid accept ho chuki, completed nahi
-  tab = completed → jobs jo user ne mark as completed kar diye
+Query (optional) – My Projects tabs (DB: is_completed, is_cancelled bool):
+  tab = pending   → OPEN, is_cancelled false (bids lag rahi hain)
+  tab = active    → CLOSED, bid accepted, is_completed false, is_cancelled false
+  tab = completed → is_completed true (user ne mark as completed kiya)
+  tab = cancelled → is_cancelled true (user ne cancel kiya)
 
 Example: GET {{base_url}}/job/my-jobs?tab=pending
 
@@ -213,6 +232,7 @@ Headers:
 Body: none
 
 Response: Array of bids; har bid me job (title, job_type, user/client, etc.) include hai.
+  - Past tab me REJECTED bids me reject_reason (string | null) aata hai – user ne reject karte waqt reason diya ho to.
 Full flow: CONTRACTOR_FLOW.txt dekho.
 
 ================================================================================
@@ -246,6 +266,8 @@ Insert kya karna hai:
 
 Minimal body (required only):
 {"quote_price": 5500}
+
+Live – Make new offer: Same endpoint. Agar contractor ne is job pe pehle hi bid lagayi hai (PENDING) to dubara POST karne se existing bid UPDATE ho jati hai (nayi quote_price / timeline). Naya bid row nahi banti. Isi ko app me "Make new offer" dikhate hain.
 
 ================================================================================
 8. GET BIDS BY JOB (Auction Members list)  [ USER + CONTRACTOR dono ]
@@ -286,6 +308,28 @@ Body (optional) – User contractor se chat me price/timeline final karke ye val
 Params: jobId (UUID), bidId (UUID) – dono URL me.
 
 ================================================================================
+9b. REJECT BID  [ USER only – Job owner, contractor ki bid reject + optional reason ]
+================================================================================
+
+POST {{base_url}}/job/:jobId/bid/:bidId/reject
+
+Example: POST {{base_url}}/job/550e8400-e29b-41d4-a716-446655440000/bid/660e8400-e29b-41d4-a716-446655440001/reject
+
+Headers:
+  Authorization: Bearer <access_token>
+  Content-Type: application/json
+
+Body (optional):
+  {
+    "reason": "We went with another contractor for this project."
+  }
+  - reason: optional, max 2000 chars. Contractor ko My Bids → Past → Rejected detail me "Reject Reason" me dikhega.
+
+Params: jobId (UUID), bidId (UUID).
+
+- Sirf job owner; job OPEN honi chahiye; bid PENDING honi chahiye. Reject ke baad bid status REJECTED ho jati hai, reject_reason save ho jata hai.
+
+================================================================================
 10. MARK AS COMPLETED  [ USER only – Job owner ]
 ================================================================================
 
@@ -301,7 +345,19 @@ Body: none
 Params: jobId (UUID) in URL.
 
 - Sirf job owner, sirf jisme bid accept ho chuki (accepted_bid_id set).
-- Job completed_at set ho jata hai; My Projects me "Completed" tab me aayega.
+- Job is_completed = true ho jata hai (DB me bool, date nahi); My Projects me "Completed" tab me aayega.
+
+================================================================================
+10b. CANCEL JOB  [ USER only – Job owner ]
+================================================================================
+
+PATCH {{base_url}}/job/:jobId/cancel
+
+Headers: Authorization: Bearer <access_token>
+Body: none
+Params: jobId (UUID).
+
+- Sirf job owner. Job is_cancelled = true ho jati hai. Completed job cancel nahi ho sakti. My Jobs tab=cancelled me dikhegi.
 
 ================================================================================
 11. GIVE REVIEW  [ USER only – Job owner, completed job ]
@@ -336,6 +392,28 @@ Headers: Authorization: Bearer <access_token>
 Body: none
 
 - Job ki review (agar di hai) return hoti hai; nahi to null/data empty.
+
+================================================================================
+12b. GET MY REVIEWS (My Rating & Review list)  [ CONTRACTOR ]
+================================================================================
+
+GET {{base_url}}/job/reviews
+
+Query (optional): limit=20, offset=0
+Headers: Authorization: Bearer <access_token>
+
+- Contractor ke saari reviews (konse job pe konsa rating). Har item me id, job_id, rating, review_text, created_at, job (id, title), reviewer (name, profile_picture).
+
+================================================================================
+12c. GET REVIEW BY ID (user + project detail)  [ Reviewer ya Contractor ]
+================================================================================
+
+GET {{base_url}}/job/review/:reviewId
+
+Headers: Authorization: Bearer <access_token>
+Params: reviewId (UUID)
+
+- Us review ki full detail: review + reviewer (user) detail + job (project) full detail. Sirf wo user (job owner) ya contractor (jo rated hua) dekh sakta hai.
 
 ================================================================================
 QUICK REFERENCE (JSON bodies only)

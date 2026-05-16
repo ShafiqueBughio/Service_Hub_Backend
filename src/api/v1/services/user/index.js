@@ -36,24 +36,28 @@ class UserService {
       identifier_type,
     });
 
-    //if user is already registered
-    if (already_user && already_user[`is_${identifier_type}_verified`]) {
+    // If user already exists, reject registration
+    if (already_user) {
       throw responses.bad_request_response(
-        `${identifier_type} ${identifier} already associated with another account`
+        `An account with this ${identifier_type} already exists. Please login instead.`
       );
     }
 
-    //hashing password and saving in db
+    // Generate OTP first (before saving to DB)
+    const otp = helper.generate_random_numeric_code({ length: 6 });
+    const _exp = new Date(new Date().getTime() + 30 * 1000).toISOString(); // 30 seconds expiry
+
+    // Hash password
     const hashed_password = await helper.hash_password({
       password,
       identifier,
     });
 
-    //data for new user
-    const otp = helper.generate_random_numeric_code({
-      length: 6,
-    }); //otp
-    const _exp = new Date(new Date().getTime() + 60 * 1000).toISOString(); // expires-in
+    // Store email lowercase
+    const value = typeof identifier === "string" ? identifier.trim() : identifier;
+    const normalized_identifier = identifier_type === "email" ? value.toLowerCase() : value;
+
+    // Create user in DB only after email is sent successfully
     const data = {
       user_type,
       user_secrets: {
@@ -63,51 +67,25 @@ class UserService {
           password: hashed_password,
         },
       },
+      [identifier_type]: normalized_identifier,
     };
-    // Store email lowercase so login lookup (case-insensitive) always finds
-    const value = typeof identifier === "string" ? identifier.trim() : identifier;
-    data[identifier_type] = identifier_type === "email" ? value.toLowerCase() : value;
 
-    let user;
-    if (!already_user) {
-      //create a new user
+    const user = await prisma.users.create({
+      data,
+      include: { user_secrets: true },
+    });
 
-      user = await prisma.users.create({
-        data: {
-          ...data,
-          ...(data.user_type === "PROVIDER" && {
-            is_approved: false,
-          }),
-        },
-        include: {
-          user_secrets: true,
-        },
-      });
-    } else {
-      //updating with new otp and expiration time
-      await helper.update_user_secret({
-        otp,
-        _exp,
-        id: already_user.user_secrets.id,
-      });
-      // Fetch updated user with user_secrets
-      user = await helper.get_already_user({
-        identifier,
-        identifier_type,
-      });
-    }
-
-    // Generate access token and refresh token
+    // Generate tokens
     const { access_token, refresh_token } = await helper.create_user_session({
       user,
       fcm_token,
     });
 
-    return { 
-      otp, 
-      user, 
-      access_token, 
-      refresh_token 
+    return {
+      otp,
+      user,
+      access_token,
+      refresh_token,
     };
   };
 

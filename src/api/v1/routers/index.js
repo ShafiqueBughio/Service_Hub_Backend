@@ -15,9 +15,11 @@ const presigned_url_router = require("./presigned_url");
 
 const public_router = require("./public");
 const job_router = require("./job");
+const analytics_router = require("./analytics");
 
 /**@PRIVATE */
 router.use("/user", user_router);
+router.use("/analytics", analytics_router);
 router.use("/notifications", notification_router);
 router.use("/chat", chat_router);
 router.use("/presigned-url", presigned_url_router);

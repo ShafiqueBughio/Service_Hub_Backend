@@ -1,0 +1,2375 @@
+{
+  "info": {
+    "name": "ServiceHub API",
+    "description": "Complete API collection for ServiceHub backend. Base URL: http://localhost:8000/api/v1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bid_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "chat_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "notification_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "review_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth & User",
+      "item": [
+        {
+          "name": "Register (USER)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "register"
+              ]
+            },
+            "description": "Register a new USER. user_type: USER | CONTRACTOR | ADMIN",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"user@example.com\",\n  \"password\": \"Test@1234\",\n  \"user_type\": \"USER\",\n  \"fcm_token\": \"optional_fcm_token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res && res.data) {",
+                  "  if (res.data.access_token) {",
+                  "    pm.collectionVariables.set('access_token', res.data.access_token);",
+                  "    console.log('access_token saved automatically');",
+                  "  }",
+                  "  if (res.data.refresh_token) {",
+                  "    pm.collectionVariables.set('refresh_token', res.data.refresh_token);",
+                  "    console.log('refresh_token saved automatically');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register (CONTRACTOR)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "register"
+              ]
+            },
+            "description": "Register a new CONTRACTOR.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"contractor@example.com\",\n  \"password\": \"Test@1234\",\n  \"user_type\": \"CONTRACTOR\",\n  \"fcm_token\": \"optional_fcm_token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res && res.data) {",
+                  "  if (res.data.access_token) {",
+                  "    pm.collectionVariables.set('access_token', res.data.access_token);",
+                  "    console.log('access_token saved automatically');",
+                  "  }",
+                  "  if (res.data.refresh_token) {",
+                  "    pm.collectionVariables.set('refresh_token', res.data.refresh_token);",
+                  "    console.log('refresh_token saved automatically');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/verify_otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "verify_otp"
+              ]
+            },
+            "description": "Verify OTP after register or forget_password. Requires access_token in header.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"otp\": 123456,\n  \"fcm_token\": \"optional_fcm_token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res && res.data) {",
+                  "  if (res.data.access_token) {",
+                  "    pm.collectionVariables.set('access_token', res.data.access_token);",
+                  "    console.log('access_token saved automatically');",
+                  "  }",
+                  "  if (res.data.refresh_token) {",
+                  "    pm.collectionVariables.set('refresh_token', res.data.refresh_token);",
+                  "    console.log('refresh_token saved automatically');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/resend_otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "resend_otp"
+              ]
+            },
+            "description": "Resend OTP to email or phone.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"user@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "login"
+              ]
+            },
+            "description": "Login with email/phone and password.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"user@example.com\",\n  \"password\": \"Test@1234\",\n  \"fcm_token\": \"optional_fcm_token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res && res.data) {",
+                  "  if (res.data.access_token) {",
+                  "    pm.collectionVariables.set('access_token', res.data.access_token);",
+                  "    console.log('access_token saved automatically');",
+                  "  }",
+                  "  if (res.data.refresh_token) {",
+                  "    pm.collectionVariables.set('refresh_token', res.data.refresh_token);",
+                  "    console.log('refresh_token saved automatically');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Social Login (Google)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/social_login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "social_login"
+              ]
+            },
+            "description": "Login with Google or Apple. social_type: GOOGLE | APPLE",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"google_id_token_here\",\n  \"user_type\": \"USER\",\n  \"social_type\": \"GOOGLE\",\n  \"fcm_token\": \"optional_fcm_token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res && res.data) {",
+                  "  if (res.data.access_token) {",
+                  "    pm.collectionVariables.set('access_token', res.data.access_token);",
+                  "    console.log('access_token saved automatically');",
+                  "  }",
+                  "  if (res.data.refresh_token) {",
+                  "    pm.collectionVariables.set('refresh_token', res.data.refresh_token);",
+                  "    console.log('refresh_token saved automatically');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Forget Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/forget_password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "forget_password"
+              ]
+            },
+            "description": "Step 1 of password reset. Returns access_token + OTP.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"user@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/reset_password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "reset_password"
+              ]
+            },
+            "description": "Step 3 of password reset. Requires access_token from forget_password flow.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"NewPass@1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/change_password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "change_password"
+              ]
+            },
+            "description": "Change password while logged in.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"old_password\": \"Test@1234\",\n  \"password\": \"NewPass@1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "logout"
+              ]
+            },
+            "description": "Logout and invalidate session.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/refresh_token",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "refresh_token"
+              ]
+            },
+            "description": "Get new access_token using refresh_token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "profile"
+              ]
+            },
+            "description": "Get logged-in user profile with all details."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile (USER)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "profile"
+              ]
+            },
+            "description": "Update profile. Works for both USER and CONTRACTOR. gender: MALE | FEMALE | OTHER",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"address\": \"123 Main St\",\n  \"city\": \"New York\",\n  \"state\": \"NY\",\n  \"contact_phone\": \"+1234567890\",\n  \"gender\": \"MALE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile (CONTRACTOR)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "profile"
+              ]
+            },
+            "description": "Update CONTRACTOR profile including services, experiences, service_areas.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Ali\",\n  \"last_name\": \"Khan\",\n  \"address\": \"456 Oak Ave\",\n  \"city\": \"Chicago\",\n  \"state\": \"IL\",\n  \"contact_phone\": \"+1987654321\",\n  \"gender\": \"MALE\",\n  \"about\": \"Professional plumber with 5 years experience\",\n  \"services\": [\n    \"Plumbing\",\n    \"Pipe Fitting\"\n  ],\n  \"experiences\": [\n    {\n      \"company\": \"ABC Plumbing Co\",\n      \"job_type\": \"Full Time\",\n      \"designation\": \"Senior Plumber\",\n      \"start_year\": \"2019\",\n      \"end_year\": \"2023\"\n    }\n  ],\n  \"service_areas\": [\n    {\n      \"location\": \"New York, NY\",\n      \"latitude\": \"40.7128\",\n      \"longitude\": \"-74.0060\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create USER Profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/create_user_profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "create_user_profile"
+              ]
+            },
+            "description": "Create profile for USER type. Only call once after registration.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"address\": \"123 Main St\",\n  \"city\": \"New York\",\n  \"state\": \"NY\",\n  \"contact_phone\": \"+1234567890\",\n  \"gender\": \"MALE\",\n  \"profile_picture\": \"uploads/profile/image.jpg\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res && res.data) {",
+                  "  if (res.data.access_token) {",
+                  "    pm.collectionVariables.set('access_token', res.data.access_token);",
+                  "    console.log('access_token saved automatically');",
+                  "  }",
+                  "  if (res.data.refresh_token) {",
+                  "    pm.collectionVariables.set('refresh_token', res.data.refresh_token);",
+                  "    console.log('refresh_token saved automatically');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create CONTRACTOR Profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/create_contractor_profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "create_contractor_profile"
+              ]
+            },
+            "description": "Create profile for CONTRACTOR type. Only call once after registration.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Ali\",\n  \"last_name\": \"Khan\",\n  \"address\": \"456 Oak Ave\",\n  \"city\": \"Chicago\",\n  \"state\": \"IL\",\n  \"contact_phone\": \"+1987654321\",\n  \"gender\": \"MALE\",\n  \"about\": \"Professional plumber with 5 years experience\",\n  \"services\": [\n    \"Plumbing\",\n    \"Pipe Fitting\",\n    \"Water Heater\"\n  ],\n  \"experiences\": [\n    {\n      \"company\": \"ABC Plumbing Co\",\n      \"job_type\": \"Full Time\",\n      \"designation\": \"Senior Plumber\",\n      \"start_year\": \"2019\",\n      \"end_year\": \"2023\"\n    }\n  ],\n  \"service_areas\": [\n    {\n      \"location\": \"New York, NY\",\n      \"latitude\": \"40.7128\",\n      \"longitude\": \"-74.0060\"\n    },\n    {\n      \"location\": \"Brooklyn, NY\",\n      \"latitude\": \"40.6782\",\n      \"longitude\": \"-73.9442\"\n    }\n  ],\n  \"business_license\": \"uploads/docs/license.pdf\",\n  \"certifications\": [\n    \"uploads/docs/cert1.pdf\",\n    \"uploads/docs/cert2.pdf\"\n  ],\n  \"portfolio_images\": [\n    \"uploads/portfolio/img1.jpg\",\n    \"uploads/portfolio/img2.jpg\"\n  ],\n  \"profile_picture\": \"uploads/profile/contractor.jpg\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res && res.data) {",
+                  "  if (res.data.access_token) {",
+                  "    pm.collectionVariables.set('access_token', res.data.access_token);",
+                  "    console.log('access_token saved automatically');",
+                  "  }",
+                  "  if (res.data.refresh_token) {",
+                  "    pm.collectionVariables.set('refresh_token', res.data.refresh_token);",
+                  "    console.log('refresh_token saved automatically');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Users (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user"
+              ]
+            },
+            "description": "Get all users. Admin only."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user"
+              ]
+            },
+            "description": "Delete logged-in user account permanently."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Me (with refresh_token)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/me?refresh_token={{refresh_token}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "me?refresh_token={{refresh_token}}"
+              ]
+            },
+            "description": "Get user info using refresh_token as query param."
+          },
+          "response": []
+        },
+        {
+          "name": "Update FCM Token",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/update_fcm",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "update_fcm"
+              ]
+            },
+            "description": "Update Firebase push notification token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\",\n  \"fcm_token\": \"new_fcm_device_token_here\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "💼 Jobs",
+      "item": [
+        {
+          "name": "Create Job (REGULAR)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/create",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "create"
+              ]
+            },
+            "description": "Create a REGULAR job (budget <= 2000). expire_days: 1 | 3 | 5 | 7",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Kitchen Plumbing Repair\",\n  \"description\": \"Need to fix kitchen sink and replace pipes under the sink.\",\n  \"min_budget\": 200,\n  \"max_budget\": 800,\n  \"expire_days\": 7,\n  \"timeline\": \"3 days\",\n  \"location\": \"New York, NY\",\n  \"provider_preferences\": [\n    \"licensed\",\n    \"experienced\"\n  ],\n  \"attachments\": [\n    {\n      \"type\": \"image\",\n      \"url\": \"uploads/jobs/sink_photo.jpg\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Job (LIVE Auction)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/create",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "create"
+              ]
+            },
+            "description": "Create a LIVE auction job (budget > 2000). Real-time bidding via Socket.IO.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Full House Renovation\",\n  \"description\": \"Complete renovation of a 3-bedroom house including electrical, plumbing, and painting.\",\n  \"min_budget\": 5000,\n  \"max_budget\": 15000,\n  \"expire_days\": 7,\n  \"timeline\": \"30 days\",\n  \"location\": \"Chicago, IL\",\n  \"provider_preferences\": [\n    \"licensed\",\n    \"insured\"\n  ],\n  \"attachments\": [\n    {\n      \"type\": \"image\",\n      \"url\": \"uploads/jobs/house1.jpg\"\n    },\n    {\n      \"type\": \"pdf\",\n      \"url\": \"uploads/jobs/blueprint.pdf\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Job (Service Request - Invite Contractor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/create",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "create"
+              ]
+            },
+            "description": "Invite a specific contractor. Job appears in their Pending tab as 'Request Service'.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Plumbing Maintenance\",\n  \"description\": \"Monthly plumbing maintenance for my office.\",\n  \"min_budget\": 300,\n  \"max_budget\": 600,\n  \"expire_days\": 3,\n  \"timeline\": \"1 day\",\n  \"location\": \"New York, NY\",\n  \"invited_contractor_id\": \"{{contractor_user_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Open Jobs (Contractor)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/list",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "list"
+              ]
+            },
+            "description": "Get all OPEN jobs. For contractors. Supports filters: search, location, job_type, limit, offset"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Open Jobs with Filters",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/list?search=plumbing&location=New York&job_type=REGULAR&limit=10&offset=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "list?search=plumbing&location=New York&job_type=REGULAR&limit=10&offset=0"
+              ]
+            },
+            "description": "Filter open jobs by search keyword, location, job_type (REGULAR|LIVE)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Jobs - Pending Tab (User)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/my-jobs?tab=pending",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "my-jobs?tab=pending"
+              ]
+            },
+            "description": "Get user's OPEN jobs (waiting for bids). tab: pending | active | completed | cancelled"
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Jobs - Active Tab (User)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/my-jobs?tab=active",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "my-jobs?tab=active"
+              ]
+            },
+            "description": "Get user's active jobs (bid accepted, work in progress)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Jobs - Completed Tab (User)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/my-jobs?tab=completed",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "my-jobs?tab=completed"
+              ]
+            },
+            "description": "Get user's completed jobs."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Jobs - Cancelled Tab (User)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/my-jobs?tab=cancelled",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "my-jobs?tab=cancelled"
+              ]
+            },
+            "description": "Get user's cancelled jobs."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Job Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/{{job_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "{{job_id}}"
+              ]
+            },
+            "description": "Get single job detail with bids count and accepted bid info."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Job",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/{{job_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "{{job_id}}"
+              ]
+            },
+            "description": "Update job details. Only job owner can update.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Kitchen Plumbing Repair\",\n  \"description\": \"Updated description with more details.\",\n  \"min_budget\": 300,\n  \"max_budget\": 900,\n  \"timeline\": \"5 days\",\n  \"location\": \"Brooklyn, NY\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Job Completed",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/{{job_id}}/mark-completed",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "{{job_id}}",
+                "mark-completed"
+              ]
+            },
+            "description": "Mark job as completed. Only job owner. Enables review. Chat becomes read-only."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Job",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/{{job_id}}/cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "{{job_id}}",
+                "cancel"
+              ]
+            },
+            "description": "Cancel a job. Cannot cancel completed jobs."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Job",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/{{job_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "{{job_id}}"
+              ]
+            },
+            "description": "Delete a job permanently. Only job owner."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🏷️ Bidding",
+      "item": [
+        {
+          "name": "Place / Update Bid (Contractor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/{{job_id}}/bid",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "{{job_id}}",
+                "bid"
+              ]
+            },
+            "description": "Place a bid on a job. If bid already exists (PENDING), it gets updated. One bid per contractor per job.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quote_price\": 650,\n  \"timeline_estimate\": \"3 days\",\n  \"notes\": \"I have 5 years of experience in plumbing. I will use high-quality materials.\",\n  \"proposal_documents\": [\n    \"uploads/proposals/proposal_doc.pdf\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Bids for Job",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/{{job_id}}/bids",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "{{job_id}}",
+                "bids"
+              ]
+            },
+            "description": "Get all bids for a job. Used for auction members list. Sorted by price asc."
+          },
+          "response": []
+        },
+        {
+          "name": "Accept Bid",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/{{job_id}}/bid/{{bid_id}}/accept",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "{{job_id}}",
+                "bid",
+                "{{bid_id}}",
+                "accept"
+              ]
+            },
+            "description": "Accept a bid. All other bids auto-rejected. Job status -> CLOSED. Chat room created. final_quote_price and final_timeline_estimate are optional.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"final_quote_price\": 600,\n  \"final_timeline_estimate\": \"2 days\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Bid",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/{{job_id}}/bid/{{bid_id}}/reject",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "{{job_id}}",
+                "bid",
+                "{{bid_id}}",
+                "reject"
+              ]
+            },
+            "description": "Reject a bid with optional reason. Contractor sees reason in Past -> Rejected screen.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Your quote is higher than our budget. We found someone more affordable.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Bids - Pending (Contractor)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/my-bids?tab=pending",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "my-bids?tab=pending"
+              ]
+            },
+            "description": "Contractor's pending bids (job still OPEN). Also includes Service Request invites."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Bids - Active (Contractor)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/my-bids?tab=active",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "my-bids?tab=active"
+              ]
+            },
+            "description": "Contractor's active bids (bid accepted, work in progress)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Bids - Past (Contractor)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/my-bids?tab=past",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "my-bids?tab=past"
+              ]
+            },
+            "description": "Contractor's past bids (rejected, completed, or cancelled jobs)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Bids - LIVE type (Contractor)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/my-bids?tab=pending&type=LIVE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "my-bids?tab=pending&type=LIVE"
+              ]
+            },
+            "description": "Filter bids by job type. type: REGULAR | LIVE"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "⭐ Reviews",
+      "item": [
+        {
+          "name": "Give Review (User -> Contractor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/{{job_id}}/review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "{{job_id}}",
+                "review"
+              ]
+            },
+            "description": "Give review after job is completed. Only job owner. rating: 1-5. One review per job.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"review_text\": \"Excellent work! Ali was very professional, completed the job on time and cleaned up after himself. Highly recommended!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Review for Job",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/{{job_id}}/review",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "{{job_id}}",
+                "review"
+              ]
+            },
+            "description": "Get review for a specific job."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Reviews (Contractor)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "reviews"
+              ]
+            },
+            "description": "Get all reviews received by contractor. Supports limit and offset query params."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Reviews with Pagination",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/reviews?limit=10&offset=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "reviews?limit=10&offset=0"
+              ]
+            },
+            "description": "Get contractor reviews with pagination."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Review by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/job/review/{{review_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "job",
+                "review",
+                "{{review_id}}"
+              ]
+            },
+            "description": "Get single review detail. Only reviewer or contractor can view."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "💬 Chat",
+      "item": [
+        {
+          "name": "Get or Create Chat by Job",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chat/by-job/{{job_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chat",
+                "by-job",
+                "{{job_id}}"
+              ]
+            },
+            "description": "Get chat room for an active job. Creates if not exists. Returns chat_allowed: false if job is completed (read-only). Only job owner and accepted contractor can access."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Chat Detail (with messages)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chat/{{chat_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chat",
+                "{{chat_id}}"
+              ]
+            },
+            "description": "Get chat detail with all messages. Use chat_id from previous response."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔔 Notifications",
+      "item": [
+        {
+          "name": "Get All Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            },
+            "description": "Get all notifications for logged-in user."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark All Notifications Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/read_all",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "read_all"
+              ]
+            },
+            "description": "Mark all notifications as read."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Single Notification Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/{{notification_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "{{notification_id}}"
+              ]
+            },
+            "description": "Mark a single notification as read."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📊 Analytics",
+      "item": [
+        {
+          "name": "Get Contractor Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/analytics/contractor",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "analytics",
+                "contractor"
+              ]
+            },
+            "description": "Get contractor analytics: Job Success Score (pie chart), Bids Success Rate, Profile Views monthly trend."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Contractor Analytics (Weekly)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/analytics/contractor?period=weekly",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "analytics",
+                "contractor?period=weekly"
+              ]
+            },
+            "description": "Get analytics with weekly period. period: monthly | weekly"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📁 File Upload (S3 Presigned URL)",
+      "item": [
+        {
+          "name": "Get Single Upload URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/presigned-url/upload-url",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "presigned-url",
+                "upload-url"
+              ]
+            },
+            "description": "Get a presigned S3 URL to upload a single file. Then PUT the file directly to upload_url. Use view_url or file_key in your profile/job/bid. folder is optional. expires_in: 60-3600 seconds.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file_name\": \"profile_picture.jpg\",\n  \"file_type\": \"image/jpeg\",\n  \"folder\": \"profile\",\n  \"expires_in\": 300\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Multiple Upload URLs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/presigned-url/upload-urls",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "presigned-url",
+                "upload-urls"
+              ]
+            },
+            "description": "Get presigned S3 URLs for multiple files at once.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"files\": [\n    {\n      \"file_name\": \"portfolio1.jpg\",\n      \"file_type\": \"image/jpeg\",\n      \"folder\": \"portfolio\"\n    },\n    {\n      \"file_name\": \"portfolio2.jpg\",\n      \"file_type\": \"image/jpeg\",\n      \"folder\": \"portfolio\"\n    },\n    {\n      \"file_name\": \"business_license.pdf\",\n      \"file_type\": \"application/pdf\",\n      \"folder\": \"documents\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🆘 Help & Feedback",
+      "item": [
+        {
+          "name": "Send Feedback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/help_and_feedback",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "help_and_feedback"
+              ]
+            },
+            "description": "Send help/feedback message. Images can be attached as multipart/form-data.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"App is crashing on bid submission\",\n  \"message\": \"When I try to submit a bid on a LIVE job, the app crashes. This happens consistently on iOS 17. Please fix this issue.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Feedback (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/help_and_feedback",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "help_and_feedback"
+              ]
+            },
+            "description": "Get all feedback submissions."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📄 Static Content",
+      "item": [
+        {
+          "name": "Get Privacy Policy",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/privacy_policy",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "privacy_policy"
+              ]
+            },
+            "description": "Get privacy policy content. Public endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Privacy Policy (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/privacy_policy",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "privacy_policy"
+              ]
+            },
+            "description": "Create/update privacy policy. Admin only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"This Privacy Policy describes how ServiceHub collects, uses, and shares information about you when you use our services...\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Terms & Conditions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/terms_and_conditions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "terms_and_conditions"
+              ]
+            },
+            "description": "Get terms and conditions content. Public endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Terms & Conditions (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/terms_and_conditions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "terms_and_conditions"
+              ]
+            },
+            "description": "Create/update terms and conditions. Admin only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"By using ServiceHub, you agree to these Terms of Service. Please read them carefully...\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get About App",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/about-app",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "about-app"
+              ]
+            },
+            "description": "Get about app content. Public endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "Create About App (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/about-app",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "about-app"
+              ]
+            },
+            "description": "Create/update about app content. Admin only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"ServiceHub is a platform connecting skilled contractors with people who need services...\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🌐 Public (No Auth Required)",
+      "item": [
+        {
+          "name": "Get All Reasons",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/public/reasons",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                "reasons"
+              ]
+            },
+            "description": "Get all reasons (for job cancellation etc). No auth required."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/public/categories",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                "categories"
+              ]
+            },
+            "description": "Get all job categories. No auth required."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Professions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/public/professions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                "professions"
+              ]
+            },
+            "description": "Get all professions list. No auth required."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Nested Professions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/public/professions/{{profession_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                "professions",
+                "{{profession_id}}"
+              ]
+            },
+            "description": "Get nested professions by profession_id. No auth required."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

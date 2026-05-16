@@ -40,6 +40,20 @@ router.get(
 );
 
 router.get(
+  "/reviews",
+  verify_token,
+  validate_request(validations.get_my_reviews_schema),
+  controller.get_my_reviews
+);
+
+router.get(
+  "/review/:reviewId",
+  verify_token,
+  validate_request(validations.get_review_by_id_schema),
+  controller.get_review_by_id
+);
+
+router.get(
   "/:jobId",
   verify_token,
   validate_request(validations.get_job_by_id_schema),
@@ -67,11 +81,25 @@ router.post(
   controller.accept_bid
 );
 
+router.post(
+  "/:jobId/bid/:bidId/reject",
+  verify_token,
+  validate_request(validations.reject_bid_schema),
+  controller.reject_bid
+);
+
 router.patch(
   "/:jobId/mark-completed",
   verify_token,
   validate_request(validations.mark_completed_schema),
   controller.mark_job_completed
+);
+
+router.patch(
+  "/:jobId/cancel",
+  verify_token,
+  validate_request(validations.cancel_job_schema),
+  controller.cancel_job
 );
 
 router.post(

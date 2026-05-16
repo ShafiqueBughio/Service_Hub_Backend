@@ -1,0 +1,69 @@
+================================================================================
+                    CONTRACTOR ANALYTICS (Screenshot wala screen)
+================================================================================
+
+base_url = http://localhost:3000/api/v1
+
+Auth: Authorization: Bearer <access_token> (contractor ka token)
+
+================================================================================
+API
+================================================================================
+
+GET {{base_url}}/analytics/contractor
+
+Query (optional):
+  period = monthly | weekly   (profile views period; abhi data same)
+
+Headers:
+  Authorization: Bearer <access_token>
+
+Body: none
+
+================================================================================
+RESPONSE (screenshot hisaab se)
+================================================================================
+
+{
+  "job_success_score": {
+    "active": 46,       // % (accepted, job not completed)
+    "pending": 38,     // %
+    "rejected": 19,    // %
+    "counts": { "active": 6, "pending": 5, "rejected": 2 },
+    "total": 13
+  },
+  "bids_success_rate": {
+    "bid_on_jobs": 18,       // total bids placed
+    "success_on_jobs": 24,   // accepted bids count (jobs won)
+    "proposal_viewed": 14    // distinct jobs they bid on (proposals)
+  },
+  "profile_views": {
+    "period": "monthly",
+    "data": [
+      { "month": "Jan", "views": 0 },
+      { "month": "Feb", "views": 0 },
+      ...
+      { "month": "Dec", "views": 0 }
+    ],
+    "total": 0
+  }
+}
+
+================================================================================
+SCREEN MAPPING
+================================================================================
+
+1. Job Success Score (pie chart)
+   - Active   = job_success_score.active (%)  – accepted, project chal raha
+   - Pending  = job_success_score.pending (%)  – abhi accept/reject nahi hua
+   - Rejected = job_success_score.rejected (%) – user ne reject kiya
+
+2. Bids Success Rate (pie + list)
+   - Bid on Jobs      = bids_success_rate.bid_on_jobs
+   - Success on Jobs  = bids_success_rate.success_on_jobs
+   - Proposal Viewed  = bids_success_rate.proposal_viewed (distinct jobs pe bid)
+
+3. Profile Views (line graph)
+   - profile_views.data = monthly points (month, views). Abhi views 0; baad me tracking add kar sakte ho.
+
+================================================================================

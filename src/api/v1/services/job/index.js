@@ -29,8 +29,13 @@ class JobService {
       );
     }
 
-    // Auto: 2000 tak REGULAR, 2001 ya upar LIVE
-    const jobType = maxB <= 2000 ? "REGULAR" : "LIVE";
+    // Body me job_type di ho to use karo, warna max_budget se auto: 2000 tak REGULAR, 2001+ LIVE
+    const jobType =
+      job_type === "REGULAR" || job_type === "LIVE"
+        ? job_type
+        : maxB <= 2000
+          ? "REGULAR"
+          : "LIVE";
 
     const attachments = [];
     if (clientAttachments && Array.isArray(clientAttachments)) {
@@ -55,10 +60,9 @@ class JobService {
         location: location ? location.trim() : null,
         provider_preferences: provider_preferences || [],
         attachments,
-        invited_contractor_id: invited_contractor_id || null,
+        ...(invited_contractor_id ? { invited_contractor_id } : {}),
       },
     });
-
     return job;
   };
 
@@ -137,12 +141,16 @@ class JobService {
 
     if (tab === "pending") {
       where.status = "OPEN";
+      where.is_cancelled = false;
     } else if (tab === "active") {
       where.status = "CLOSED";
       where.accepted_bid_id = { not: null };
-      where.completed_at = null;
+      where.is_completed = false;
+      where.is_cancelled = false;
     } else if (tab === "completed") {
-      where.completed_at = { not: null };
+      where.is_completed = true;
+    } else if (tab === "cancelled") {
+      where.is_cancelled = true;
     }
 
     const jobs = await prisma.job.findMany({
@@ -237,12 +245,32 @@ class JobService {
     if (!job.accepted_bid_id) {
       throw responses.bad_request_response("No bid accepted for this job.");
     }
-    if (job.completed_at) {
+    if (job.is_completed) {
       throw responses.bad_request_response("Job is already marked as completed.");
     }
     await prisma.job.update({
       where: { id: jobId },
-      data: { completed_at: new Date() },
+      data: { is_completed: true },
+    });
+    return await this.get_single_job(jobId);
+  };
+
+  cancel_job = async ({ jobId, user_id }) => {
+    const job = await prisma.job.findFirst({
+      where: { id: jobId, user_id },
+    });
+    if (!job) {
+      throw responses.not_found_response("Job not found.");
+    }
+    if (job.is_completed) {
+      throw responses.bad_request_response("Completed job cannot be cancelled.");
+    }
+    if (job.is_cancelled) {
+      throw responses.bad_request_response("Job is already cancelled.");
+    }
+    await prisma.job.update({
+      where: { id: jobId },
+      data: { is_cancelled: true },
     });
     return await this.get_single_job(jobId);
   };
@@ -261,10 +289,36 @@ class JobService {
   // --- Contractor: list open jobs (Latest Jobs); invited_only = pending / "Request Service" wali jobs ---
   get_jobs_list = async ({ query = {}, contractor_id } = {}) => {
     const { search, location, job_type, limit = 20, offset = 0, invited_only } = query;
-    const where = { status: "OPEN" };
-    if (invited_only && contractor_id) {
-      where.invited_contractor_id = contractor_id;
+    const invitedOnly = invited_only === true || invited_only === "true";
+
+    // Pending / "Request Service" wali jobs: raw query use karte hain (Prisma client me field na ho to bhi chal jaye)
+    if (invitedOnly && contractor_id) {
+      const ids = await prisma.$queryRaw`
+        SELECT id FROM jobs
+        WHERE status = 'OPEN' AND is_cancelled = 0 AND invited_contractor_id = ${contractor_id}
+        ORDER BY created_at DESC
+        LIMIT ${Number(limit)} OFFSET ${Number(offset)}
+      `;
+      const idList = (ids || []).map((r) => r.id);
+      if (idList.length === 0) return [];
+      const jobs = await prisma.job.findMany({
+        where: { id: { in: idList } },
+        orderBy: { created_at: "desc" },
+        include: {
+          user: {
+            select: {
+              id: true,
+              user_details: {
+                select: { first_name: true, last_name: true, location: true },
+              },
+            },
+          },
+        },
+      });
+      return jobs.map((j) => ({ ...j, requested_for_you: true }));
     }
+
+    const where = { status: "OPEN", is_cancelled: false };
     if (search) {
       where.OR = [
         { title: { contains: search } },
@@ -290,13 +344,6 @@ class JobService {
         },
       },
     });
-    // Contractor k "pending" ke liye: ye job usko invite kiya gaya hai (Request Service from completed)
-    if (contractor_id && !invited_only) {
-      return jobs.map((j) => ({
-        ...j,
-        requested_for_you: j.invited_contractor_id === contractor_id,
-      }));
-    }
     return jobs;
   };
 
@@ -414,25 +461,56 @@ class JobService {
 
   // --- Contractor: My Bids (Regular Bid | Live Bid → Pending | Active | Past) ---
   get_my_bids = async (contractor_id, query = {}) => {
-    const { tab, type } = query; // tab = pending | active | past, type = regular | live
+    let { tab, type } = query;
+    type = type ? String(type).toUpperCase() : undefined; // "regular" / "REGULAR" dono
     const where = { contractor_id };
     const jobFilter = {};
     if (type === "REGULAR") jobFilter.job_type = "REGULAR";
     if (type === "LIVE") jobFilter.job_type = "LIVE";
+
+    const jobSelect = {
+      id: true,
+      title: true,
+      description: true,
+      job_type: true,
+      status: true,
+      min_budget: true,
+      max_budget: true,
+      timeline: true,
+      location: true,
+      created_at: true,
+      is_completed: true,
+      is_cancelled: true,
+      user_id: true,
+      user: {
+        select: {
+          id: true,
+          user_details: {
+            select: {
+              first_name: true,
+              last_name: true,
+              profile_picture: true,
+              location: true,
+            },
+          },
+        },
+      },
+    };
 
     if (tab === "pending") {
       where.status = "PENDING";
       where.job = { status: "OPEN", ...jobFilter };
     } else if (tab === "active") {
       where.status = "ACCEPTED";
-      where.job = { status: "CLOSED", completed_at: null, ...jobFilter };
+      where.job = { status: "CLOSED", is_completed: false, is_cancelled: false, ...jobFilter };
     } else if (tab === "past") {
       where.OR = [
         { status: "REJECTED", ...(Object.keys(jobFilter).length ? { job: jobFilter } : {}) },
         {
           status: "ACCEPTED",
-          job: { completed_at: { not: null }, ...jobFilter },
+          job: { is_completed: true, ...jobFilter },
         },
+        { job: { is_cancelled: true, ...jobFilter } },
       ];
     } else if (Object.keys(jobFilter).length) {
       where.job = jobFilter;
@@ -443,36 +521,47 @@ class JobService {
       orderBy: { created_at: "desc" },
       include: {
         job: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            job_type: true,
-            status: true,
-            min_budget: true,
-            max_budget: true,
-            timeline: true,
-            location: true,
-            created_at: true,
-            completed_at: true,
-            user_id: true,
-            user: {
-              select: {
-                id: true,
-                user_details: {
-                  select: {
-                    first_name: true,
-                    last_name: true,
-                    profile_picture: true,
-                    location: true,
-                  },
-                },
-              },
-            },
-          },
+          select: jobSelect,
         },
       },
     });
+
+    // Pending tab: user ne "Request Service" ki ho (invited_contractor_id) lekin contractor ne abhi bid nahi lagayi – wo bhi list me lao
+    if (tab === "pending") {
+      const jobIdsWithBid = bids.map((b) => b.job_id);
+      const invitedWhere = {
+        invited_contractor_id: contractor_id,
+        status: "OPEN",
+        is_cancelled: false,
+        ...jobFilter,
+        ...(jobIdsWithBid.length > 0 ? { id: { notIn: jobIdsWithBid } } : {}),
+      };
+      const invitedJobs = await prisma.job.findMany({
+        where: invitedWhere,
+        orderBy: { created_at: "desc" },
+        select: jobSelect,
+      });
+      for (const job of invitedJobs) {
+        bids.push({
+          id: null,
+          job_id: job.id,
+          contractor_id,
+          quote_price: null,
+          timeline_estimate: null,
+          notes: null,
+          proposal_documents: null,
+          status: "PENDING",
+          reject_reason: null,
+          created_at: job.created_at,
+          updated_at: job.updated_at,
+          job,
+          invited_only: true, // Request Service – abhi bid nahi lagayi, isliye pending me dikhao
+        });
+      }
+      // Sort by created_at desc so recent (invited + bids) upar
+      bids.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+
     return bids;
   };
 
@@ -534,6 +623,56 @@ class JobService {
     return acceptedBid;
   };
 
+  // User reject bid – contractor Past me "Rejected" + reject_reason dikhega (Reject Reason screen)
+  reject_bid = async ({ jobId, bidId, user_id, reason }) => {
+    const job = await prisma.job.findFirst({
+      where: { id: jobId, user_id },
+    });
+    if (!job) {
+      throw responses.not_found_response("Job not found.");
+    }
+    if (job.status !== "OPEN") {
+      throw responses.bad_request_response("Job is already closed.");
+    }
+    const bid = await prisma.bid.findFirst({
+      where: { id: bidId, job_id: jobId },
+    });
+    if (!bid) {
+      throw responses.not_found_response("Bid not found.");
+    }
+    if (bid.status !== "PENDING") {
+      throw responses.bad_request_response("Bid is already accepted or rejected.");
+    }
+    const updated = await prisma.bid.update({
+      where: { id: bidId },
+      data: {
+        status: "REJECTED",
+        reject_reason: reason && reason.trim() ? reason.trim() : null,
+      },
+      include: {
+        job: {
+          select: {
+            id: true,
+            title: true,
+            job_type: true,
+          },
+        },
+        contractor: {
+          select: {
+            id: true,
+            user_details: {
+              select: {
+                first_name: true,
+                last_name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    return updated;
+  };
+
   // Give Review – user (job owner) rates contractor after job completed (Give Review screen)
   give_review = async ({ jobId, user_id, rating, review_text }) => {
     const job = await prisma.job.findFirst({
@@ -546,7 +685,7 @@ class JobService {
     if (job.status !== "CLOSED" || !job.accepted_bid_id) {
       throw responses.bad_request_response("Job must be completed with an accepted bid before giving a review.");
     }
-    if (!job.completed_at) {
+    if (!job.is_completed) {
       throw responses.bad_request_response("Job must be marked as completed before giving a review.");
     }
     const existing = await prisma.review.findUnique({
@@ -609,6 +748,95 @@ class JobService {
         },
       },
     });
+    return review;
+  };
+
+  // My Rating & Review list – contractor ke saari reviews (konse job pe konsa rating)
+  get_my_reviews = async (contractor_id, query = {}) => {
+    const { limit = 20, offset = 0 } = query;
+    const reviews = await prisma.review.findMany({
+      where: { contractor_id },
+      orderBy: { created_at: "desc" },
+      take: Math.min(Number(limit) || 20, 100),
+      skip: Number(offset) || 0,
+      include: {
+        job: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            is_completed: true,
+          },
+        },
+        reviewer: {
+          select: {
+            id: true,
+            user_details: {
+              select: {
+                first_name: true,
+                last_name: true,
+                profile_picture: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    return reviews;
+  };
+
+  // Get review by ID – under ka user (reviewer) + project (job) full detail
+  get_review_by_id = async (reviewId, user_id) => {
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+      include: {
+        job: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            status: true,
+            is_completed: true,
+            min_budget: true,
+            max_budget: true,
+            timeline: true,
+            location: true,
+            job_type: true,
+            created_at: true,
+          },
+        },
+        reviewer: {
+          select: {
+            id: true,
+            user_details: {
+              select: {
+                first_name: true,
+                last_name: true,
+                profile_picture: true,
+                location: true,
+              },
+            },
+          },
+        },
+        contractor: {
+          select: {
+            id: true,
+            user_details: {
+              select: {
+                first_name: true,
+                last_name: true,
+                profile_picture: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!review) throw responses.not_found_response("Review not found.");
+    // Only reviewer (job owner), contractor (who received), or admin can view
+    if (review.reviewer_id !== user_id && review.contractor_id !== user_id) {
+      throw responses.forbidden_response("You cannot view this review.");
+    }
     return review;
   };
 }

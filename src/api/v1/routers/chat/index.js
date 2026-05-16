@@ -10,6 +10,14 @@ const router = express.Router();
 const controller = new ChatController();
 const validations = new ChatValidations();
 
+// Active job se message icon pe tap → is job ke liye room get/create. chat_allowed = true sirf jab job active (completed nahi).
+router.get(
+  "/by-job/:jobId",
+  verify_token,
+  validate_request(validations.get_chat_by_job_schema),
+  controller.get_chat_by_job
+);
+
 router.get(
   "/:chat_id",
   verify_token,

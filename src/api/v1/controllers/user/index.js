@@ -2,6 +2,7 @@
 
 const UserService = require("@api/v1/services/user");
 const Responses = require("@constants/responses");
+const send_email = require("@configs/email");
 
 const responses = new Responses();
 const service = new UserService();
@@ -11,6 +12,7 @@ class UserController {
     try {
       const { identifier, password, user_type, fcm_token } = req.body;
 
+      // Step 1: Check duplicate + generate OTP + hash password (no DB write yet)
       const { otp, user, access_token, refresh_token } = await service.register_user({
         identifier,
         password,
@@ -18,9 +20,32 @@ class UserController {
         fcm_token,
       });
 
+      // Step 2: Send OTP email — if this fails, we delete the user from DB
+      try {
+        await send_email({
+          from: `"Service Link" <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
+          to: identifier,
+          subject: "Your OTP Code - Service Link",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
+              <h2 style="color: #333;">Verify Your Account</h2>
+              <p style="color: #555;">Use the OTP below to verify your account. It expires in <strong>30 seconds</strong>.</p>
+              <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; text-align: center; padding: 16px 0;">
+                ${otp}
+              </div>
+              <p style="color: #999; font-size: 12px;">If you did not request this, please ignore this email.</p>
+            </div>
+          `,
+        });
+      } catch (emailError) {
+        // Email failed — rollback: delete the user we just created
+        await service.delete_user({ user });
+        throw emailError;
+      }
+
       const response = responses.ok_response(
-        { user, otp, access_token, refresh_token },
-        "User created successfully. Please verify otp"
+        { user, access_token, refresh_token },
+        "Account created successfully. OTP sent to your email."
       );
       return res.status(response.status.code).json(response);
     } catch (error) {
@@ -77,9 +102,26 @@ class UserController {
         identifier,
       });
 
+      // Send OTP via email
+      await send_email({
+        from: `"Service Link" <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
+        to: identifier,
+        subject: "Password Reset OTP - Service Link",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #333;">Reset Your Password</h2>
+            <p style="color: #555;">Use the OTP below to reset your password. It expires in <strong>60 seconds</strong>.</p>
+            <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; text-align: center; padding: 16px 0;">
+              ${otp}
+            </div>
+            <p style="color: #999; font-size: 12px;">If you did not request this, please ignore this email.</p>
+          </div>
+        `,
+      });
+
       const response = responses.ok_response(
-        { otp, access_token },
-        "OTP sent successfully. Please verify OTP"
+        { access_token },
+        "OTP sent to your email. Please verify OTP."
       );
       return res.status(response.status.code).json(response);
     } catch (error) {
@@ -131,9 +173,26 @@ class UserController {
 
       const { otp } = await service.resend_otp({ identifier });
 
+      // Send OTP via email
+      await send_email({
+        from: `"Service Link" <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
+        to: identifier,
+        subject: "Your New OTP Code - Service Link",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #333;">New OTP Requested</h2>
+            <p style="color: #555;">Use the OTP below to verify your account. It expires in <strong>60 seconds</strong>.</p>
+            <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; text-align: center; padding: 16px 0;">
+              ${otp}
+            </div>
+            <p style="color: #999; font-size: 12px;">If you did not request this, please ignore this email.</p>
+          </div>
+        `,
+      });
+
       const response = responses.ok_response(
-        { otp },
-        "OTP resent successfully. Please verify OTP"
+        null,
+        "OTP resent successfully. Please check your email."
       );
       return res.status(response.status.code).json(response);
     } catch (error) {

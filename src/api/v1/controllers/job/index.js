@@ -97,6 +97,23 @@ class JobController {
     }
   };
 
+  cancel_job = async (req, res, next) => {
+    try {
+      const { jobId } = req.params;
+      const { user } = req.user;
+
+      const job = await service.cancel_job({ jobId, user_id: user.id });
+
+      const response = responses.ok_response(
+        job,
+        "Job cancelled successfully."
+      );
+      return res.status(response.status.code).json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   get_single_job = async (req, res, next) => {
     try {
       const { jobId } = req.params;
@@ -197,6 +214,32 @@ class JobController {
     }
   };
 
+  reject_bid = async (req, res, next) => {
+    try {
+      const { jobId, bidId } = req.params;
+      const { user } = req.user;
+      const { reason } = req.body || {};
+      const updated = await service.reject_bid({
+        jobId,
+        bidId,
+        user_id: user.id,
+        reason,
+      });
+      const io = globalThis.io;
+      if (io) {
+        const roomName = `job-room-${jobId}`;
+        io.to(roomName).emit(JobEvents.BID_REJECTED, { bidId, jobId, reject_reason: updated.reject_reason });
+      }
+      const response = responses.ok_response(
+        updated,
+        "Bid rejected successfully."
+      );
+      return res.status(response.status.code).json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   deleteJob = async (req, res, next) => {
     try {
       const { jobId } = req.params;
@@ -246,6 +289,36 @@ class JobController {
       const response = responses.ok_response(
         review,
         review ? "Review fetched successfully." : null
+      );
+      return res.status(response.status.code).json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  get_my_reviews = async (req, res, next) => {
+    try {
+      const { user } = req.user;
+      const query = req.query || {};
+      const reviews = await service.get_my_reviews(user.id, query);
+      const response = responses.ok_response(
+        reviews,
+        "My ratings and reviews fetched successfully."
+      );
+      return res.status(response.status.code).json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  get_review_by_id = async (req, res, next) => {
+    try {
+      const { reviewId } = req.params;
+      const { user } = req.user;
+      const review = await service.get_review_by_id(reviewId, user.id);
+      const response = responses.ok_response(
+        review,
+        "Review with user and project detail fetched successfully."
       );
       return res.status(response.status.code).json(response);
     } catch (error) {

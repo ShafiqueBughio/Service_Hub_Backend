@@ -9,10 +9,7 @@
 ALTER TABLE `jobs` ADD COLUMN `accepted_bid_id` VARCHAR(191) NULL,
     ADD COLUMN `completed_at` DATETIME(3) NULL;
 
--- AlterTable
-ALTER TABLE `reviews` MODIFY `created_at` TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0);
-
--- AlterTable
+-- AlterTable (reviews table is created in next migration 20260131000000_add_review)
 ALTER TABLE `user_details` MODIFY `profile_picture` TEXT NULL;
 
 -- AlterTable

@@ -1,0 +1,62 @@
+================================================================================
+                    CHAT FLOW – User & Contractor (Active Job Only)
+================================================================================
+
+base_url = http://localhost:3000/api/v1
+socket_url = http://localhost:3000
+
+Rule:
+  - Chat tab / message icon sirf ACTIVE job pe hai – jab bid accept ho chuki, project chal raha (job completed nahi).
+  - Complete hone k baad naye message NAHI bhej sakte (read-only; purani chat dekh sakte hain, "You can't send messages for a completed job" banner dikhao).
+
+================================================================================
+ROOM = JOB (Us job k hisab se room create)
+================================================================================
+
+  - Har ACTIVE job ke liye ek hi chat room (job owner + accepted bid contractor).
+  - Active job detail screen pe message icon → us job ke liye room open/create.
+  - API: GET {{base_url}}/chat/by-job/:jobId
+  - Response me chat_id, messages, chat_allowed (true = active, false = completed – send block).
+
+================================================================================
+STEP-BY-STEP (Screenshots jaisa)
+================================================================================
+
+1. User ya Contractor: Active job open kare (My Projects → Active / My Bids → Active).
+2. Us job ki detail screen pe message/chat icon dikhe.
+3. Icon tap → GET {{base_url}}/chat/by-job/:jobId
+   - Agar is job ke liye chat pehle se nahi thi to backend create karega.
+   - Response: { id (chat_id), job_id, job, other_participant, chat_allowed, messages }
+4. App chat screen kholo; room = private-chat-{chat_id}. Socket: join_private_chat { chat_id, job_id, recipient_id }.
+5. Message bhejne pe:
+   - Socket: private_chat_message { message, chat_id, recipient_id, attachment, job_id }
+   - Backend: Agar job is_completed = true to error "You can't send messages for a completed job."; warna message save + real-time emit.
+6. Job complete hone k baad: chat_allowed = false. App me input hide karke banner dikhao: "You can't send messages for a completed job."
+
+================================================================================
+APIS
+================================================================================
+
+  GET /chat/by-job/:jobId   (Auth)  – Is job ke liye chat get/create. Sirf job owner ya accepted contractor. chat_allowed = !job.is_completed.
+  GET /chat/:chat_id        (Auth)  – Chat detail + messages. chat_allowed same rule.
+
+================================================================================
+SOCKET (Real-time)
+================================================================================
+
+  join_private_chat  – { chat_id, job_id, recipient_id }  → room "private-chat-{chat_id}"
+  private_chat_message – { message, chat_id, recipient_id, attachment, job_id }  → save (if job active) + emit private_message
+  Completed job pe send pe error emit: "You can't send messages for a completed job."
+
+================================================================================
+SUMMARY
+================================================================================
+
+| Screen           | Kya dikhe / kya ho |
+|------------------|--------------------|
+| Active job       | Message icon → chat open, room = us job |
+| Chat (active)    | Message input, send allowed |
+| Chat (completed) | Purani messages read-only, banner: "You can't send messages for a completed job." |
+| Chats list       | Active Job tab = jobs jahan chat chal raha; Completed Job tab = read-only chats |
+
+================================================================================

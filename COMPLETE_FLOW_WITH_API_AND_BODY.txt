@@ -34,11 +34,19 @@ Body:
 }
 Note: job_type auto (max_budget <= 2000 = REGULAR, 2001+ = LIVE). expire_days: 1,3,5,7.
 
---- Step 2: My Projects – Pending (bids abhi accept nahi kiye) ---
+--- Step 1b: Service Request (same job create – kisi contractor ko invite) ---
+Same: POST {{base_url}}/job/create
+Body me extra: "invited_contractor_id": "<contractor ka user UUID>", "job_type": "REGULAR" ya "job_type": "LIVE"
+  - REGULAR = contractor apne pending me simple bid karega (POST /job/:jobId/bid).
+  - LIVE = contractor apne pending me live bid karega (socket join_job_room + bid_submit).
+User baad me us contractor ki bid accept/reject dono kar sakta hai (same accept/reject APIs).
+
+--- Step 2: My Projects – Pending (jin pe bid lag rahi hai, abhi accept nahi kiye) ---
 Method:  GET
 URL:     {{base_url}}/job/my-jobs?tab=pending
 Headers: Authorization: Bearer <access_token>
 Body:    none
+Note:    User ka pending = jobs pe jin pe contractors bid de rahe hain (OPEN).
 
 --- Step 3: Job detail (job card tap – Bidding Requests dekhne) ---
 Method:  GET
@@ -53,12 +61,21 @@ URL:     {{base_url}}/job/:jobId/bids
 Headers: Authorization: Bearer <access_token>
 Body:    none
 
---- Step 5: Accept Bid (ek bid accept – sirf ek) ---
+--- Step 5: Accept Bid (ek bid accept – sirf ek) | Reject: Step 5b ---
 Method:  POST
 URL:     {{base_url}}/job/:jobId/bid/:bidId/accept
 Headers: Authorization: Bearer <access_token>
-Body:    none
+Body (optional): { "final_quote_price": 5000, "final_timeline_estimate": "50 days" }
 Example: POST {{base_url}}/job/550e8400-e29b-41d4-a716-446655440000/bid/660e8400-e29b-41d4-a716-446655440001/accept
+Note:    Ye Regular aur Live dono bids pe use hota hai (Service Request se aayi job pe bhi).
+
+--- Step 5b: Reject Bid (contractor ki bid reject + optional reason) ---
+Method:  POST
+URL:     {{base_url}}/job/:jobId/bid/:bidId/reject
+Headers: Authorization: Bearer <access_token>
+         Content-Type: application/json
+Body (optional): { "reason": "We went with another contractor." }
+Note:    Contractor ko My Bids → Past me reject_reason dikhega.
 
 --- Step 6: My Projects – Active (bid accept ho chuki) ---
 Method:  GET
@@ -140,17 +157,19 @@ Body:
 }
 Minimal body: { "quote_price": 5500 }
 
---- Step 4: My Bids – Pending (Regular) ---
+--- Step 4: My Bids – Pending (Regular) | Service Request wali job pe simple bid ---
 Method:  GET
 URL:     {{base_url}}/job/my-bids?tab=pending&type=REGULAR
 Headers: Authorization: Bearer <access_token>
 Body:    none
+Note:    Contractor ka pending = jahan USER NE REQUEST KIYA (Request Service). REGULAR = is list me aati hain. Contractor simple bid dega: POST /job/:jobId/bid. User accept/reject karega.
 
---- Step 4b: My Bids – Pending (Live) ---
+--- Step 4b: My Bids – Pending (Live) | Service Request wali job pe live bid (socket) ---
 Method:  GET
 URL:     {{base_url}}/job/my-bids?tab=pending&type=LIVE
 Headers: Authorization: Bearer <access_token>
 Body:    none
+Note:    LIVE pending = jahan user ne Request Service ki (LIVE job). Contractor live bid karega: socket join_job_room + bid_submit (ya POST /job/:jobId/bid). User accept/reject karega.
 
 --- Step 5: My Bids – Active (bid accept ho chuki) ---
 Method:  GET

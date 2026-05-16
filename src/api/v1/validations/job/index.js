@@ -81,23 +81,31 @@ class JobSchema {
   // User: My Projects – optional tab = pending | active | completed
   get_my_jobs_schema = Joi.object({
     query: Joi.object({
-      tab: Joi.string().valid("pending", "active", "completed").optional(),
+      tab: Joi.string().valid("pending", "active", "completed", "cancelled").optional(),
     }),
     params: Joi.object({}),
     body: Joi.object({}),
   });
 
-  // Contractor: My Bids – tab = pending | active | past, type = regular | live
+  // Contractor: My Bids – tab = pending | active | past, type = REGULAR | LIVE (lowercase bhi chalega)
   get_my_bids_schema = Joi.object({
     query: Joi.object({
       tab: Joi.string().valid("pending", "active", "past").optional(),
-      type: Joi.string().valid("REGULAR", "LIVE").optional(),
+      type: Joi.string().valid("REGULAR", "LIVE", "regular", "live").optional(),
     }),
     params: Joi.object({}),
     body: Joi.object({}),
   });
 
   mark_completed_schema = Joi.object({
+    query: Joi.object({}),
+    params: Joi.object({
+      jobId: Joi.string().uuid().required(),
+    }),
+    body: Joi.object({}),
+  });
+
+  cancel_job_schema = Joi.object({
     query: Joi.object({}),
     params: Joi.object({
       jobId: Joi.string().uuid().required(),
@@ -164,6 +172,18 @@ class JobSchema {
     }),
   });
 
+  // User reject bid – contractor ko Past me "Rejected" dikhega, reason optional (Reject Reason screen)
+  reject_bid_schema = Joi.object({
+    query: Joi.object({}),
+    params: Joi.object({
+      jobId: Joi.string().uuid().required(),
+      bidId: Joi.string().uuid().required(),
+    }),
+    body: Joi.object({
+      reason: Joi.string().trim().max(2000).optional().allow(""),
+    }),
+  });
+
   // Give Review – job owner (user) rates contractor after job completed (1-5 stars + optional text)
   give_review_schema = Joi.object({
     query: Joi.object({}),
@@ -180,6 +200,23 @@ class JobSchema {
     query: Joi.object({}),
     params: Joi.object({
       jobId: Joi.string().uuid().required(),
+    }),
+    body: Joi.object({}),
+  });
+
+  get_my_reviews_schema = Joi.object({
+    query: Joi.object({
+      limit: Joi.number().integer().min(1).max(100).optional(),
+      offset: Joi.number().integer().min(0).optional(),
+    }),
+    params: Joi.object({}),
+    body: Joi.object({}),
+  });
+
+  get_review_by_id_schema = Joi.object({
+    query: Joi.object({}),
+    params: Joi.object({
+      reviewId: Joi.string().uuid().required(),
     }),
     body: Joi.object({}),
   });
