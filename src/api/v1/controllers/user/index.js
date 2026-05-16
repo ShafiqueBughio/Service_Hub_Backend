@@ -12,39 +12,15 @@ class UserController {
     try {
       const { identifier, password, user_type, fcm_token } = req.body;
 
-      // Step 1: Check duplicate + generate OTP + hash password (no DB write yet)
-      const { otp, user, access_token, refresh_token } = await service.register_user({
+      const { user } = await service.register_user({
         identifier,
         password,
         user_type,
         fcm_token,
       });
 
-      // Step 2: Send OTP email — if this fails, we delete the user from DB
-      try {
-        await send_email({
-          from: `"Service Link" <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
-          to: identifier,
-          subject: "Your OTP Code - Service Link",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
-              <h2 style="color: #333;">Verify Your Account</h2>
-              <p style="color: #555;">Use the OTP below to verify your account. It expires in <strong>30 seconds</strong>.</p>
-              <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; text-align: center; padding: 16px 0;">
-                ${otp}
-              </div>
-              <p style="color: #999; font-size: 12px;">If you did not request this, please ignore this email.</p>
-            </div>
-          `,
-        });
-      } catch (emailError) {
-        // Email failed — rollback: delete the user we just created
-        await service.delete_user({ user });
-        throw emailError;
-      }
-
       const response = responses.ok_response(
-        { user, access_token, refresh_token },
+        { user_id: user.id },
         "Account created successfully. OTP sent to your email."
       );
       return res.status(response.status.code).json(response);
@@ -74,19 +50,14 @@ class UserController {
 
   verify_otp = async (req, res, next) => {
     try {
-      const { otp, fcm_token } = req.body;
-      const {user} = req.user;
-
-      if (!user) {
-        throw responses.unauthorized_response("Access token required. Please provide Authorization header with access_token from register.");
-      }
+      const { user_id, otp, fcm_token } = req.body;
 
       const { access_token, refresh_token, is_profile_completed } =
-        await service.verify_otp({ otp, fcm_token, user });
+        await service.verify_otp({ user_id, otp, fcm_token });
 
       const response = responses.ok_response(
         { access_token, refresh_token, is_profile_completed },
-        "User OTP verified."
+        "OTP verified successfully."
       );
       return res.status(response.status.code).json(response);
     } catch (error) {

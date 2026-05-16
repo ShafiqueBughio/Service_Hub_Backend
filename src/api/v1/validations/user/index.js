@@ -38,6 +38,7 @@ class UserSchema {
     query: Joi.object({}),
     params: Joi.object({}),
     body: Joi.object({
+      user_id: Joi.string().required(),
       otp: Joi.number().integer().min(0).max(999999).required(),
       fcm_token: Joi.string().optional(),
     }),

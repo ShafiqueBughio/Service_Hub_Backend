@@ -95,7 +95,7 @@ model user_secrets {
 
   otp            String?  @db.VarChar(255)
   password       String?  @db.VarChar(255)
-  otp_expiration DateTime @db.DateTime()
+  otp_expiration DateTime? @db.DateTime()
 
   users users? @relation(fields: [user_id], references: [id], onDelete: Cascade)
 

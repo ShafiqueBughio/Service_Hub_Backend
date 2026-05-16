@@ -161,49 +161,49 @@ class UserService {
   };
 
   //Verify OTP
-  verify_otp = async ({ otp, fcm_token, user }) => {
-    // User is required (from access_token)
-    if (!user) {
-      throw responses.bad_request_response("Access token required.");
-    }
-
+  verify_otp = async ({ user_id, otp, fcm_token }) => {
+    // Find user by user_id received from register response
     const already_user = await helper.get_already_user({
-      find_user_obj: { id: user.id },
+      find_user_obj: { id: user_id },
     });
-    
+
     if (!already_user) {
-      throw responses.bad_request_response("User not found.");
+      throw responses.not_found_response("User not found.");
     }
 
-    // Determine identifier type from user data
-    let identifier_type;
-    if (already_user.email) {
-      identifier_type = "email";
-    } else if (already_user.phone) {
-      identifier_type = "phone";
-    } else {
-      throw responses.bad_request_response("User identifier not found.");
+    // Fix 2: Already verified user check
+    const identifier_type = already_user.email ? "email" : "phone";
+    const is_already_verified = already_user[`is_${identifier_type}_verified`];
+    if (is_already_verified) {
+      throw responses.bad_request_response("Account is already verified. Please login.");
     }
 
-    //matching otp and expiration time
-    if (
-      new Date(already_user.user_secrets.otp_expiration).getTime() >
-        new Date().getTime() &&
-      already_user.user_secrets.otp == otp
-    ) {
-      //data for updating user
-      const data = {};
-      data[`is_${identifier_type}_verified`] = true;
-      await prisma.users.update({
-        where: {
-          id: already_user.id,
-        },
-        data,
-      });
-    } else {
-      throw responses.bad_request_response("Invalid or Expired OTP.");
+    // Check OTP expiry
+    const is_expired =
+      new Date(already_user.user_secrets.otp_expiration).getTime() <
+      new Date().getTime();
+
+    if (is_expired) {
+      throw responses.bad_request_response("OTP has expired. Please request a new one.");
     }
 
+    // Match OTP
+    if (String(already_user.user_secrets.otp) !== String(otp)) {
+      throw responses.bad_request_response("Invalid OTP. Please try again.");
+    }
+
+    // Mark email/phone as verified + Fix 1: clear OTP after successful verification
+    await prisma.users.update({
+      where: { id: already_user.id },
+      data: { [`is_${identifier_type}_verified`]: true },
+    });
+    await helper.update_user_secret({
+      otp: null,
+      _exp: null,
+      id: already_user.user_secrets.id,
+    });
+
+    // Generate tokens
     const { access_token, refresh_token } = await helper.create_user_session({
       user: already_user,
       fcm_token,

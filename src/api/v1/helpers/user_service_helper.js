@@ -264,9 +264,10 @@ class UserServiceHelpers {
   //Update User Secret
   update_user_secret = async ({ otp, _exp, password, id }) => {
     const update_data = {};
-    otp && (update_data.otp = otp);
-    _exp && (update_data.otp_expiration = _exp);
-    password && (update_data.password = password);
+    // Use explicit undefined check so null (otp clear) is also saved
+    if (otp !== undefined) update_data.otp = otp;
+    if (_exp !== undefined) update_data.otp_expiration = _exp;
+    if (password !== undefined) update_data.password = password;
 
     await prisma.user_secrets.update({
       data: update_data,

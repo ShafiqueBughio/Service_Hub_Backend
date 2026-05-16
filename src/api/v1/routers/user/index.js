@@ -1,6 +1,7 @@
 /** @format */
 
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const user_type_check = require("@v1_middlewares/user_type_check.middleware");
 const validate_request = require("@v1_middlewares/validate_request_joi.middleware");
 const verify_token = require("@v1_middlewares/verify_token.middleware");
@@ -15,6 +16,19 @@ const controller = new UserController();
 
 const router = express.Router();
 
+// Rate limiter: max 5 OTP attempts per IP per 10 minutes
+const otp_rate_limiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 5,
+  message: {
+    status: { code: 429, success: false },
+    data: null,
+    message: "Too many OTP attempts. Please try again after 10 minutes.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 //register
 router.post(
   "/register",
@@ -22,10 +36,10 @@ router.post(
   controller.register_user,
 );
 
-//verify_otp
+//verify_otp — no token needed, user_id comes in body
 router.post(
   "/verify_otp",
-  verify_token,
+  otp_rate_limiter,
   validate_request(validations.verify_otp_schema),
   controller.verify_otp,
 );
