@@ -45,8 +45,7 @@ class UserService {
     }
 
     // Generate OTP first (before saving to DB)
-    const otp = helper.generate_random_numeric_code({ length: 6 });
-    console.log("Generated OTP:", otp, typeof otp); // debug
+    const otp = String(helper.generate_random_numeric_code({ length: 6 }));
     const _exp = new Date(new Date().getTime() + 30 * 1000).toISOString(); // 30 seconds expiry
 
 
@@ -80,6 +79,7 @@ class UserService {
       // Send OTP email
   if (identifier_type === "email") {
     try {
+      const otp_string = String(otp);
       await send_email({
         from: `Service Hub <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
         to: normalized_identifier,
@@ -92,7 +92,7 @@ class UserService {
             </p>
 
             <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; text-align: center; padding: 16px 0;">
-              ${otp}
+              ${otp_string}
             </div>
 
             <p style="color: #999; font-size: 12px;">
@@ -347,15 +347,42 @@ class UserService {
     }
 
     //update otp and expiration time
-    const otp = helper.generate_random_numeric_code({
+    const otp = String(helper.generate_random_numeric_code({
       length: 6,
-    });
+    }));
     const _exp = new Date(new Date().getTime() + 60 * 1000).toISOString();
     await helper.update_user_secret({
       otp,
       _exp,
       id: already_user.user_secrets.id,
     });
+
+    // Send OTP email
+    if (identifier_type === "email") {
+      try {
+        await send_email({
+          from: `Service Hub <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
+          to: already_user.email,
+          subject: "Your OTP Code - Service Hub",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
+              <h2 style="color: #333;">New OTP Requested</h2>
+              <p style="color: #555;">
+                Use the OTP below to verify your account. It expires in <strong>60 seconds</strong>.
+              </p>
+              <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; text-align: center; padding: 16px 0;">
+                ${otp}
+              </div>
+              <p style="color: #999; font-size: 12px;">
+                If you did not request this, please ignore this email.
+              </p>
+            </div>
+          `,
+        });
+      } catch (emailError) {
+        console.error("Resend OTP email error:", emailError.message);
+      }
+    }
 
     return { otp };
   };

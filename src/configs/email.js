@@ -1,5 +1,6 @@
 const Responses = require("@constants/responses");
 const nodemailer = require("nodemailer");
+const crypto = require("crypto");
 
 const responses = new Responses();
 
@@ -17,7 +18,15 @@ const transporter = nodemailer.createTransport({
 
 const send_email = async (mail_details) => {
   try {
-    const info = await transporter.sendMail(mail_details);
+    // Unique Message-ID prevents Gmail from threading emails together
+    const unique_message_id = `<${crypto.randomUUID()}@servicehub.com>`;
+    const info = await transporter.sendMail({
+      ...mail_details,
+      messageId: unique_message_id,
+      headers: {
+        "X-Entity-Ref-ID": crypto.randomUUID(), // extra Gmail threading prevention
+      },
+    });
     return info;
   } catch (error) {
     throw responses.server_error_response(error.message);
