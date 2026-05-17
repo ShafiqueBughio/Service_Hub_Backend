@@ -1,6 +1,38 @@
 /** @format */
 
 class Responses {
+  refresh_token_cookie_options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite:
+      process.env.NODE_ENV === "production" ? "strict" : "lax",
+    path: "/",
+    maxAge: 14 * 24 * 60 * 60 * 1000,
+  };
+
+  set_refresh_token_cookie = (res, refresh_token) => {
+    res.cookie(
+      "refresh_token",
+      refresh_token,
+      this.refresh_token_cookie_options
+    );
+  };
+
+  clear_refresh_token_cookie = (res) => {
+    const { httpOnly, secure, sameSite, path } =
+      this.refresh_token_cookie_options;
+    res.clearCookie("refresh_token", { httpOnly, secure, sameSite, path });
+  };
+
+  send_ok_with_refresh_cookie = (res, payload, message = null) => {
+    const { refresh_token, ...data } = payload;
+
+    this.set_refresh_token_cookie(res, refresh_token);
+
+    const response = this.ok_response(data, message);
+    return res.status(response.status.code).json(response);
+  };
+
   generic_response = (status, success, data = null, error = null) => ({
     status: {
       code: status,
@@ -148,6 +180,7 @@ class Responses {
     data: null,
     message: error,
   });
+  
 }
 
 module.exports = Responses;

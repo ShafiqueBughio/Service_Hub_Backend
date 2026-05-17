@@ -20,7 +20,7 @@ class UserController {
       });
 
       const response = responses.ok_response(
-        { user_id: user.id },
+        { email: user.email },
         "Account created successfully. OTP sent to your email."
       );
       return res.status(response.status.code).json(response);
@@ -31,18 +31,19 @@ class UserController {
 
   login_user = async (req, res, next) => {
     try {
-      const { identifier, email, password, fcm_token } = req.body;
-      // Accept "email" from app if "identifier" not sent (same field for login)
-      const loginIdentifier = identifier || email;
+      const { identifier, password, fcm_token } = req.body;
 
       const data = await service.login_user({
-        identifier: loginIdentifier,
+        identifier,
         password,
         fcm_token,
       });
 
-      const response = responses.ok_response(data, "Login Success.");
-      return res.status(response.status.code).json(response);
+      return responses.send_ok_with_refresh_cookie(
+        res,
+        data,
+        "Login Success"
+      );
     } catch (error) {
       next(error);
     }
@@ -50,16 +51,15 @@ class UserController {
 
   verify_otp = async (req, res, next) => {
     try {
-      const { user_id, otp, fcm_token } = req.body;
+      const { identifier, otp, fcm_token } = req.body;
 
-      const { access_token, refresh_token, is_profile_completed } =
-        await service.verify_otp({ user_id, otp, fcm_token });
+      const data = await service.verify_otp({ identifier, otp, fcm_token });
 
-      const response = responses.ok_response(
-        { access_token, refresh_token, is_profile_completed },
+      return responses.send_ok_with_refresh_cookie(
+        res,
+        data,
         "OTP verified successfully."
       );
-      return res.status(response.status.code).json(response);
     } catch (error) {
       next(error);
     }
@@ -69,29 +69,13 @@ class UserController {
     try {
       const { identifier } = req.body;
 
-      const { otp, access_token } = await service.forget_password({
+      const data = await service.forget_password({
         identifier,
       });
 
-      // Send OTP via email
-      await send_email({
-        from: `"Service Link" <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
-        to: identifier,
-        subject: "Password Reset OTP - Service Link",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
-            <h2 style="color: #333;">Reset Your Password</h2>
-            <p style="color: #555;">Use the OTP below to reset your password. It expires in <strong>60 seconds</strong>.</p>
-            <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; text-align: center; padding: 16px 0;">
-              ${otp}
-            </div>
-            <p style="color: #999; font-size: 12px;">If you did not request this, please ignore this email.</p>
-          </div>
-        `,
-      });
 
       const response = responses.ok_response(
-        { access_token },
+        data,
         "OTP sent to your email. Please verify OTP."
       );
       return res.status(response.status.code).json(response);
@@ -142,24 +126,7 @@ class UserController {
     try {
       const { identifier } = req.body;
 
-      const { otp } = await service.resend_otp({ identifier });
-
-      // Send OTP via email
-      await send_email({
-        from: `"Service Link" <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
-        to: identifier,
-        subject: "Your New OTP Code - Service Link",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
-            <h2 style="color: #333;">New OTP Requested</h2>
-            <p style="color: #555;">Use the OTP below to verify your account. It expires in <strong>60 seconds</strong>.</p>
-            <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; text-align: center; padding: 16px 0;">
-              ${otp}
-            </div>
-            <p style="color: #999; font-size: 12px;">If you did not request this, please ignore this email.</p>
-          </div>
-        `,
-      });
+      await service.resend_otp({ identifier });
 
       const response = responses.ok_response(
         null,
@@ -175,23 +142,18 @@ class UserController {
     try {
       const { token, fcm_token, user_type, social_type } = req.body;
 
-      const { access_token, refresh_token, is_profile_completed } =
-        await service.social_login({
-          token,
-          fcm_token,
-          user_type,
-          social_type,
-        });
+      const data = await service.social_login({
+        token,
+        fcm_token,
+        user_type,
+        social_type,
+      });
 
-      const response = responses.ok_response(
-        {
-          access_token,
-          refresh_token,
-          is_profile_completed,
-        },
+      return responses.send_ok_with_refresh_cookie(
+        res,
+        data,
         "User login successful."
       );
-      return res.status(response.status.code).json(response);
     } catch (error) {
       next(error);
     }
@@ -215,9 +177,18 @@ class UserController {
 
   logout_user = async (req, res, next) => {
     try {
-      const { refresh_token } = req.body;
+      const refresh_token =
+        req.cookies?.refresh_token || req.body?.refresh_token;
+
+      if (!refresh_token) {
+        throw responses.bad_request_response(
+          "Refresh token required. Send via cookie or request body."
+        );
+      }
 
       await service.logout_user({ refresh_token });
+
+      responses.clear_refresh_token_cookie(res);
 
       const response = responses.ok_response(null, "User logout successful.");
       return res.status(response.status.code).json(response);

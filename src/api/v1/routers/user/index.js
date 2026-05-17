@@ -18,7 +18,7 @@ const router = express.Router();
 
 // Rate limiter: max 5 OTP attempts per IP per 10 minutes
 const otp_rate_limiter = rateLimit({
-  windowMs: 10 * 60 * 1000, // 10 minutes
+  windowMs: 5 * 60 * 1000, // 10 minutes
   max: 5,
   message: {
     status: { code: 429, success: false },
@@ -47,6 +47,7 @@ router.post(
 //resend_otp
 router.post(
   "/resend_otp",
+  otp_rate_limiter,
   validate_request(validations.resend_otp_schema),
   controller.resend_otp,
 );
@@ -61,6 +62,7 @@ router.post(
 //forget_password
 router.post(
   "/forget_password",
+  otp_rate_limiter,
   validate_request(validations.forget_password_schema),
   controller.forget_password,
 );

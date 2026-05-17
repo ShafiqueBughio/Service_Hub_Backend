@@ -5,10 +5,12 @@ const UserServiceHelpers = require("@api/v1/helpers/user_service_helper");
 const TokenService = require("@api/v1/services/token");
 const Responses = require("@constants/responses");
 const send_email = require("@configs/email");
+const Notifications = require("@api/v1/services/notifications");
 
 const responses = new Responses();
 const helper = new UserServiceHelpers();
 const token_service = new TokenService(process.env.JWT_SECRET_KEY);
+const notifications = new Notifications("servicelink-auth");
 
 class UserService {
   #calculate_age = (dateOfBirth) => {
@@ -46,7 +48,7 @@ class UserService {
 
     // Generate OTP first (before saving to DB)
     const otp = String(helper.generate_random_numeric_code({ length: 6 }));
-    const _exp = new Date(new Date().getTime() + 30 * 1000).toISOString(); // 30 seconds expiry
+    const _exp = new Date(new Date().getTime() + 60 * 1000).toISOString(); // 30 seconds expiry
 
 
     // Hash password
@@ -59,7 +61,7 @@ class UserService {
     const value = typeof identifier === "string" ? identifier.trim() : identifier;
     const normalized_identifier = identifier_type === "email" ? value.toLowerCase() : value;
 
-    // Create user in DB only after email is sent successfully
+    // Create user in DB 
     const data = {
       user_type,
       user_secrets: {
@@ -76,10 +78,9 @@ class UserService {
       data,
     });
 
-      // Send OTP email
+    // Send OTP email
   if (identifier_type === "email") {
     try {
-      const otp_string = String(otp);
       await send_email({
         from: `Service Hub <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
         to: normalized_identifier,
@@ -88,11 +89,11 @@ class UserService {
           <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
             <h2 style="color: #333;">Verify Your Account</h2>
             <p style="color: #555;">
-              Use the OTP below to verify your account. It expires in <strong>30 seconds</strong>.
+              Use the OTP below to verify your account. It expires in <strong>60 seconds</strong>.
             </p>
 
             <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; text-align: center; padding: 16px 0;">
-              ${otp_string}
+              ${otp}
             </div>
 
             <p style="color: #999; font-size: 12px;">
@@ -149,30 +150,39 @@ class UserService {
       fcm_token,
     });
 
+
+    // Send login notification via FCM
+    notifications.notification_handler({
+      title: "New Login",
+      message: "You have successfully logged in to Service Hub.",
+      recipient_id: already_user.id,
+      save_to_db: false,
+    });
+
     // Same user data as get profile (user_details, contractor_profile, etc.)
     const { db_user } = await this.get_user_profile({ id: already_user.id });
 
     return {
       access_token,
       refresh_token,
-      is_profile_completed: already_user.is_completed,
       user: db_user,
     };
   };
 
   //Verify OTP
-  verify_otp = async ({ user_id, otp, fcm_token }) => {
-    // Find user by user_id received from register response
+  verify_otp = async ({ identifier, otp, fcm_token }) => {
+    // Find user by email or phone
+    const identifier_type = helper.validate_identifier(identifier);
     const already_user = await helper.get_already_user({
-      find_user_obj: { id: user_id },
+      identifier,
+      identifier_type,
     });
 
     if (!already_user) {
       throw responses.not_found_response("User not found.");
     }
 
-    // Fix 2: Already verified user check
-    const identifier_type = already_user.email ? "email" : "phone";
+    // Already verified check
     const is_already_verified = already_user[`is_${identifier_type}_verified`];
     if (is_already_verified) {
       throw responses.bad_request_response("Account is already verified. Please login.");
@@ -192,7 +202,7 @@ class UserService {
       throw responses.bad_request_response("Invalid OTP. Please try again.");
     }
 
-    // Mark email/phone as verified + Fix 1: clear OTP after successful verification
+    // Mark verified + clear OTP and expiry
     await prisma.users.update({
       where: { id: already_user.id },
       data: { [`is_${identifier_type}_verified`]: true },
@@ -209,10 +219,17 @@ class UserService {
       fcm_token,
     });
 
+    // Send welcome notification via FCM
+    notifications.notification_handler({
+      title: "Account Verified",
+      message: "Your account has been verified successfully. Welcome to Service Hub!",
+      recipient_id: already_user.id,
+      save_to_db: false, // auth notification — no need to save in DB
+    });
+
     return {
       access_token,
-      refresh_token,
-      is_profile_completed: already_user.is_completed,
+      refresh_token
     };
   };
 
@@ -230,24 +247,53 @@ class UserService {
       );
     }
 
-    //updating user secrets
-    const otp = helper.generate_random_numeric_code({
-      length: 6,
-    });
-    const _exp = new Date(new Date().getTime() + 60 * 1000).toISOString();
+    // Step 1: Clear expired OTP and expiry from DB first
     await helper.update_user_secret({
-      _exp,
-      otp,
+      otp: null,
+      _exp: null,
       id: already_user.user_secrets.id,
     });
 
-    // Generate access token for password reset flow
-    const access_token = token_service.generate_access_token(
-      already_user.id,
-      already_user.user_type
-    );
+    // Step 2: Generate fresh OTP and new expiry
+    const otp = String(helper.generate_random_numeric_code({ length: 6 }));
+    const _exp = new Date(new Date().getTime() + 60 * 1000).toISOString();
 
-    return { otp, access_token };
+    // Step 3: Save new OTP and expiry in DB
+    await helper.update_user_secret({
+      otp,
+      _exp,
+      id: already_user.user_secrets.id,
+    });
+        // Send OTP email
+  if (identifier_type === "email") {
+    try {
+      await send_email({
+        from: `Service Hub <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
+        to: already_user.email,
+        subject: "Password Reset OTP - Service Hub",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #333;">Verify Your Account</h2>
+            <p style="color: #555;">
+              Use the OTP below to verify your account. It expires in <strong>60 seconds</strong>.
+            </p>
+
+            <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; text-align: center; padding: 16px 0;">
+              ${otp}
+            </div>
+
+            <p style="color: #999; font-size: 12px;">
+              If you did not request this, please ignore this email.
+            </p>
+          </div>
+        `,
+      });
+    } catch (emailError) {
+      throw emailError;
+    }
+  }
+
+    return null;
   };
 
   //Reset Password (requires access_token from forget_password flow, OTP already verified)
@@ -346,18 +392,31 @@ class UserService {
       );
     }
 
-    //update otp and expiration time
-    const otp = String(helper.generate_random_numeric_code({
-      length: 6,
-    }));
+    // Already verified check — no need to resend if already verified
+    const is_already_verified = already_user[`is_${identifier_type}_verified`];
+    if (is_already_verified) {
+      throw responses.bad_request_response("Account is already verified. Please login.");
+    }
+
+    // Step 1: Clear expired OTP and expiry from DB first
+    await helper.update_user_secret({
+      otp: null,
+      _exp: null,
+      id: already_user.user_secrets.id,
+    });
+
+    // Step 2: Generate fresh OTP and new expiry
+    const otp = String(helper.generate_random_numeric_code({ length: 6 }));
     const _exp = new Date(new Date().getTime() + 60 * 1000).toISOString();
+
+    // Step 3: Save new OTP and expiry in DB
     await helper.update_user_secret({
       otp,
       _exp,
       id: already_user.user_secrets.id,
     });
 
-    // Send OTP email
+    // Step 4: Send new OTP via email
     if (identifier_type === "email") {
       try {
         await send_email({
@@ -381,6 +440,7 @@ class UserService {
         });
       } catch (emailError) {
         console.error("Resend OTP email error:", emailError.message);
+        throw responses.server_error_response("Failed to send OTP email. Please try again.");
       }
     }
 
@@ -403,6 +463,15 @@ class UserService {
         fcm_token,
         user: already_user,
       });
+
+      // Send login notification via FCM
+      notifications.notification_handler({
+        title: "New Login",
+        message: "You have successfully logged in to Service Hub.",
+        recipient_id: already_user.id,
+        save_to_db: false,
+      });
+
       return {
         access_token,
         refresh_token,
@@ -714,10 +783,16 @@ class UserService {
       fcm_token: data.fcm_token || null,
     });
     const { db_user } = await this.get_user_profile({ id: user.id });
+
+    // Send profile created notification via FCM
+    notifications.notification_handler({
+      title: "Profile Created",
+      message: "Your profile has been set up successfully. You're all set!",
+      recipient_id: user.id,
+      save_to_db: false,
+    });
+
     return {
-      access_token,
-      refresh_token,
-      is_profile_completed: true,
       user: db_user,
     };
   };
