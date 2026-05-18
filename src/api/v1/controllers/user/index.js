@@ -152,7 +152,7 @@ class UserController {
       return responses.send_ok_with_refresh_cookie(
         res,
         data,
-        "User login successful."
+        "Login Success"
       );
     } catch (error) {
       next(error);

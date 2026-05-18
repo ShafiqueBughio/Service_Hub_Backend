@@ -132,6 +132,12 @@ class UserService {
       );
     }
 
+    if(!already_user?.is_email_verified) {
+      throw responses.bad_request_response(
+        `Account is not verified. Please verify your account first.`
+      );
+    }
+
     //matching password from bcrypt
     const match = await helper.match_password({
       password,
@@ -447,64 +453,74 @@ class UserService {
     return { otp };
   };
 
-  //Social Login
+  // Social Login: existing user → login | new user → auto-register (is_email_verified = true)
   social_login = async ({ token, fcm_token, user_type, social_type }) => {
     const { email, profile_picture, user_name } =
       social_type == "GOOGLE"
         ? await helper.verify_google_token({ token })
         : await helper.verify_apple_token({ token });
 
-    const already_user = await helper.get_already_user({
-      find_user_obj: { email, is_email_verified: true },
-    });
-
-    if (already_user) {
-      const { access_token, refresh_token } = await helper.create_user_session({
-        fcm_token,
-        user: already_user,
-      });
-
-      // Send login notification via FCM
-      notifications.notification_handler({
-        title: "New Login",
-        message: "You have successfully logged in to Service Hub.",
-        recipient_id: already_user.id,
-        save_to_db: false,
-      });
-
-      return {
-        access_token,
-        refresh_token,
-        is_profile_completed: already_user.is_completed,
-      };
+    if (!email) {
+      throw responses.bad_request_response(
+        "Email is required for social login. Please use an account with email access."
+      );
     }
 
-    //creating data for new user
-    const data = {
-      user_type,
-      is_email_verified: true,
-      social_account_token: token,
-    };
-    email && (data.email = email);
-    profile_picture &&
-      (data.user_details = {
-        create: {
-          profile_picture,
-        },
-      });
-    const new_user = await prisma.users.create({
-      data,
+    const normalized_email = email.trim().toLowerCase();
+    let user = await helper.get_already_user({
+      find_user_obj: { email: normalized_email },
     });
 
-    //creating session
+    let is_new_user = false;
+
+    if (user) {
+      await prisma.users.update({
+        where: { id: user.id },
+        data: {
+          social_account_token: token,
+          is_email_verified: true,
+        },
+      });
+    } else {
+      is_new_user = true;
+      const create_data = {
+        user_type,
+        email: normalized_email,
+        is_email_verified: true,
+        social_account_token: token,
+        user_secrets: { create: {} },
+      };
+
+      if (profile_picture || user_name) {
+        const details = {};
+        if (profile_picture) details.profile_picture = profile_picture;
+        if (user_name) details.first_name = user_name;
+        create_data.user_details = { create: details };
+      }
+
+      user = await prisma.users.create({ data: create_data });
+    }
+
     const { access_token, refresh_token } = await helper.create_user_session({
+      user,
       fcm_token,
-      user: new_user,
     });
+
+    notifications.notification_handler({
+      title: is_new_user ? "Welcome" : "New Login",
+      message: is_new_user
+        ? "Your account has been created successfully. Welcome to Service Hub!"
+        : "You have successfully logged in to Service Hub.",
+      recipient_id: user.id,
+      save_to_db: false,
+    });
+
+    const { db_user } = await this.get_user_profile({ id: user.id });
+
     return {
       access_token,
       refresh_token,
-      is_profile_completed: new_user.is_completed,
+      user: db_user,
     };
   };
 
