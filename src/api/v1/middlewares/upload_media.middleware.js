@@ -7,22 +7,31 @@ const process_files = async (files, date) => {
   return Promise.all(upload_promises);
 };
 
+const getPublicFileUrl = (response) => {
+  if (response.is_local) {
+    const base =
+      process.env.BACKEND_PUBLIC_URL ||
+      `http://localhost:${process.env.PORT || 8000}`;
+    return `${base.replace(/\/$/, "")}/uploads${response.public_id}`;
+  }
+
+  const s3Base = (process.env.S3_ACCESS_URL || "").replace(/\/$/, "");
+  return `${s3Base}${response.public_id}`;
+};
+
 const extract_urls_and_field_name = (responses) => {
   const media = {};
   responses.map((response) => {
     const fieldname = response.public_id.split("/")[1];
+    const fileMeta = {
+      path: getPublicFileUrl(response),
+      content_type: response.content_type,
+    };
+
     if (!media[fieldname]) {
-      media[fieldname] = [
-        {
-          path: process.env.S3_ACCESS_URL + response.public_id,
-          content_type: response.content_type,
-        },
-      ];
+      media[fieldname] = [fileMeta];
     } else {
-      media[fieldname].push({
-        path: process.env.S3_ACCESS_URL + response.public_id,
-        content_type: response.content_type,
-      });
+      media[fieldname].push(fileMeta);
     }
   });
   return media;

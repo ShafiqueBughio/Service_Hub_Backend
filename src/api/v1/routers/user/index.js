@@ -7,6 +7,7 @@ const validate_request = require("@v1_middlewares/validate_request_joi.middlewar
 const verify_token = require("@v1_middlewares/verify_token.middleware");
 const verify_token_optional = require("@v1_middlewares/verify_token_optional.middleware");
 const handle_multipart_data = require("@v1_middlewares/populate_multipart_data.middleware");
+const parse_multipart_json_fields = require("@v1_middlewares/parse_multipart_json_fields.middleware");
 const upload_media = require("@api/v1/middlewares/upload_media.middleware");
 const UserSchema = require("@v1_validations/user");
 const UserController = require("@api/v1/controllers/user");
@@ -104,10 +105,10 @@ router.post(
   controller.logout_user,
 );
 
-//refresh_token
+//refresh_token — refresh token read from httpOnly cookie
 router.post(
   "/refresh_token",
-  validate_request(validations.logout_schema),
+  validate_request(validations.refresh_token_schema),
   controller.refresh_user,
 );
 
@@ -134,6 +135,7 @@ router.post(
   "/create_user_profile",
   verify_token,
   handle_multipart_data(),
+  parse_multipart_json_fields,
   upload_media,
   user_type_check("USER"),
   validate_request(validations.create_user_profile_schema),
@@ -145,6 +147,7 @@ router.post(
   "/create_contractor_profile",
   verify_token,
   handle_multipart_data(),
+  parse_multipart_json_fields,
   upload_media,
   user_type_check("CONTRACTOR"),
   validate_request(validations.create_contractor_profile_schema),

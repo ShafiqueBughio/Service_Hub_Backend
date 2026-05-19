@@ -105,6 +105,12 @@ class UserSchema {
     }),
   });
 
+  refresh_token_schema = Joi.object({
+    query: Joi.object({}),
+    params: Joi.object({}),
+    body: Joi.object({}),
+  });
+
   get_all_users_schema = Joi.object({
     query: Joi.object({ user_name: Joi.string() }),
     params: Joi.object({}),

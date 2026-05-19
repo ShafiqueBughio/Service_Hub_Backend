@@ -2,6 +2,9 @@
 
 const { prisma } = require("@configs/prisma");
 const UserServiceHelpers = require("@api/v1/helpers/user_service_helper");
+const {
+  formatCreateProfileResponse,
+} = require("@api/v1/helpers/format_profile_response");
 const TokenService = require("@api/v1/services/token");
 const Responses = require("@constants/responses");
 const send_email = require("@configs/email");
@@ -705,24 +708,40 @@ class UserService {
     if (user.is_completed) {
       throw responses.bad_request_response("Profile already created.");
     }
-    await prisma.$transaction(async (tx) => {
-      // Extract file key from URL if full URL is provided
-      let profile_picture = data.profile_picture || null;
-      if (profile_picture && profile_picture.includes('?')) {
-        // Extract file key from presigned URL
+
+    const storeMediaPath = (url) => {
+      if (!url) return null;
+      if (typeof url !== "string") return null;
+      if (url.includes("?")) {
         try {
-          const url = new URL(profile_picture);
-          profile_picture = url.pathname.substring(1); // Remove leading slash
-        } catch (e) {
-          // If URL parsing fails, try to extract path manually
-          const match = profile_picture.match(/\/uploads\/[^?]+/);
-          if (match) {
-            profile_picture = match[0].substring(1); // Remove leading slash
-          }
+          const parsed = new URL(url);
+          return `${parsed.origin}${parsed.pathname}`;
+        } catch {
+          return url.split("?")[0];
         }
       }
+      return url;
+    };
 
-      // Common user details for both USER and CONTRACTOR
+    const profile_picture = storeMediaPath(data.profile_picture);
+    const business_license = storeMediaPath(data.business_license);
+    const certifications = (data.certifications || [])
+      .map(storeMediaPath)
+      .filter(Boolean);
+    const portfolio_images = (data.portfolio_images || [])
+      .map(storeMediaPath)
+      .filter(Boolean);
+    const services = (data.services || []).filter(
+      (service) => service && String(service).trim()
+    );
+    const experiences = (data.experiences || []).filter(
+      (exp) => exp?.company || exp?.designation || exp?.job_type
+    );
+    const service_areas = (data.service_areas || []).filter(
+      (area) => area?.location
+    );
+
+    await prisma.$transaction(async (tx) => {
       const userDetailsData = {
         first_name: data.first_name,
         last_name: data.last_name,
@@ -731,7 +750,7 @@ class UserService {
         gender: data.gender,
         address: data.address,
         contact_phone: data.contact_phone,
-        profile_picture: profile_picture,
+        profile_picture,
         user_id: user.id,
       };
 
@@ -740,46 +759,70 @@ class UserService {
         tx,
       });
 
-      // If user is CONTRACTOR, create contractor profile
       if (user.user_type === "CONTRACTOR") {
+        const documentsToCreate = [
+          ...(business_license
+            ? [
+                {
+                  document_type: "BUSINESS_LICENSE",
+                  document_url: business_license,
+                },
+              ]
+            : []),
+          ...certifications.map((cert) => ({
+            document_type: "CERTIFICATION",
+            document_url: cert,
+          })),
+        ];
+
         const contractorProfileData = {
-          about: data.about,
+          about: data.about || null,
           user_id: user.id,
-          contractor_experiences: {
-            create: data.experiences?.map((exp) => ({
-              company: exp.company,
-              job_type: exp.job_type,
-              designation: exp.designation,
-              start_year: exp.start_year,
-              end_year: exp.end_year,
-            })) || [],
-          },
-          contractor_documents: {
-            create: [
-              ...(data.business_license ? [{ document_type: "BUSINESS_LICENSE", document_url: data.business_license }] : []),
-              ...(data.certifications?.map((cert) => ({
-                document_type: "CERTIFICATION",
-                document_url: cert,
-              })) || []),
-            ],
-          },
-          contractor_portfolios: {
-            create: (data.portfolio_images || []).map((img) => ({
-              image_url: img,
-            })),
-          },
-          contractor_services: {
-            create: (data.services || []).map((service) => ({
-              service_name: service,
-            })),
-          },
-          contractor_service_areas: {
-            create: (data.service_areas || []).map((area) => ({
-              location: area.location,
-              latitude: area.latitude,
-              longitude: area.longitude,
-            })),
-          },
+          ...(experiences.length
+            ? {
+                contractor_experiences: {
+                  create: experiences.map((exp) => ({
+                    company: exp.company || null,
+                    job_type: exp.job_type || null,
+                    designation: exp.designation || null,
+                    start_year: exp.start_year || null,
+                    end_year: exp.end_year || null,
+                  })),
+                },
+              }
+            : {}),
+          ...(documentsToCreate.length
+            ? { contractor_documents: { create: documentsToCreate } }
+            : {}),
+          ...(portfolio_images.length
+            ? {
+                contractor_portfolios: {
+                  create: portfolio_images.map((img) => ({
+                    image_url: img,
+                  })),
+                },
+              }
+            : {}),
+          ...(services.length
+            ? {
+                contractor_services: {
+                  create: services.map((service) => ({
+                    service_name: String(service).trim(),
+                  })),
+                },
+              }
+            : {}),
+          ...(service_areas.length
+            ? {
+                contractor_service_areas: {
+                  create: service_areas.map((area) => ({
+                    location: area.location,
+                    latitude: area.latitude || null,
+                    longitude: area.longitude || null,
+                  })),
+                },
+              }
+            : {}),
         };
 
         await tx.contractor_profile.create({
@@ -790,17 +833,16 @@ class UserService {
       await this.mark_profile_completed({ id: user.id, tx });
     });
 
-    // Return login-style response (access_token, refresh_token, is_profile_completed, user)
     const updated_user = await helper.get_already_user({
       find_user_obj: { id: user.id },
     });
-    const { access_token, refresh_token } = await helper.create_user_session({
+    await helper.create_user_session({
       user: updated_user,
       fcm_token: data.fcm_token || null,
     });
+
     const { db_user } = await this.get_user_profile({ id: user.id });
 
-    // Send profile created notification via FCM
     notifications.notification_handler({
       title: "Profile Created",
       message: "Your profile has been set up successfully. You're all set!",
@@ -808,9 +850,7 @@ class UserService {
       save_to_db: false,
     });
 
-    return {
-      user: db_user,
-    };
+    return formatCreateProfileResponse(db_user);
   };
 
   //Get All Users

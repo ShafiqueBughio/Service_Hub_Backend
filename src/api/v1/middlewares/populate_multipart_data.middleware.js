@@ -8,6 +8,9 @@ const storage = multer.memoryStorage();
 const limits = { fileSize: 10 * 1024 * 1024 };
 const fields = [
   { name: "profile_picture", maxCount: 1 },
+  { name: "business_license", maxCount: 1 },
+  { name: "certifications", maxCount: 10 },
+  { name: "portfolio_images", maxCount: 10 },
   { name: "help_and_feedback_images", maxCount: 10 },
   { name: "community_image", maxCount: 1 },
   { name: "id_front", maxCount: 1 },

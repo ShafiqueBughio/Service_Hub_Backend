@@ -7,6 +7,22 @@ const send_email = require("@configs/email");
 const responses = new Responses();
 const service = new UserService();
 
+const mergeProfileMedia = (body, media = {}) => ({
+  ...body,
+  ...(media.profile_picture?.[0]?.path
+    ? { profile_picture: media.profile_picture[0].path }
+    : {}),
+  ...(media.business_license?.[0]?.path
+    ? { business_license: media.business_license[0].path }
+    : {}),
+  ...(media.certifications?.length
+    ? { certifications: media.certifications.map((file) => file.path) }
+    : {}),
+  ...(media.portfolio_images?.length
+    ? { portfolio_images: media.portfolio_images.map((file) => file.path) }
+    : {}),
+});
+
 class UserController {
   register_user = async (req, res, next) => {
     try {
@@ -199,7 +215,13 @@ class UserController {
 
   refresh_user = async (req, res, next) => {
     try {
-      const { refresh_token } = req.body;
+      const refresh_token = req.cookies?.refresh_token;
+
+      if (!refresh_token) {
+        throw responses.bad_request_response(
+          "Refresh token required. Please login again."
+        );
+      }
 
       const { access_token } = await service.refresh_user({
         refresh_token,
@@ -319,12 +341,7 @@ class UserController {
 
       const data = await service.create_profile({
         user,
-        data: {
-          ...req.body,
-          ...(req.media?.profile_picture?.[0]?.path
-            ? { profile_picture: req.media.profile_picture[0].path }
-            : {}),
-        },
+        data: mergeProfileMedia(req.body, req.media),
       });
 
       const response = responses.ok_response(

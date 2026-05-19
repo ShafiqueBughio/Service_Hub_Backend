@@ -116,13 +116,13 @@ describe("Auth API (TEST_CASES: TC-AUTH)", () => {
       expect(res.status).toBe(200);
     });
 
-    test("TC-AUTH-15: Refresh token – valid", async () => {
+    test("TC-AUTH-15: Refresh token – valid (cookie)", async () => {
       if (!userRefreshToken) return;
       const res = await request(app)
         .post(`${BASE}/refresh_token`)
-        .send({ refresh_token: userRefreshToken });
+        .set("Cookie", [`refresh_token=${userRefreshToken}`]);
       expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty("access_token");
+      expect(res.body.data).toHaveProperty("access_token");
     });
   });
 });

@@ -25,10 +25,24 @@ app.post(
 //middlewares
 app.use(cookie_parser());
 app.use(express.json({ limit: "100mb" }));
+const allowedOrigins = [
+  process.env.FRONTEND_DOMAIN,
+  "http://localhost:3000",
+  "http://localhost:3001",
+].filter(Boolean);
+
 const cors_options = {
-  origin: "*",
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  origin(origin, callback) {
+    // allow non-browser clients (no Origin header) and whitelisted origins
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    }
+  },
   credentials: true,
+  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   optionsSuccessStatus: 204,
 };
 app.use(cors(cors_options));
