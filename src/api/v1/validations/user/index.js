@@ -52,6 +52,16 @@ class UserSchema {
     }),
   });
 
+  verify_forget_password_otp_schema = Joi.object({
+    query: Joi.object({}),
+    params: Joi.object({}),
+    body: Joi.object({
+      identifier: Joi.string().max(100).required(),
+      otp: Joi.number().integer().min(0).max(999999).required(),
+      fcm_token: Joi.string().optional(),
+    }),
+  });
+
   reset_password_schema = Joi.object({
     query: Joi.object({}),
     params: Joi.object({}),

@@ -53,6 +53,14 @@ router.post(
   controller.resend_otp,
 );
 
+//resend_otp_for_forget_password
+router.post(
+  "/resend_otp_for_forget_password",
+  otp_rate_limiter,
+  validate_request(validations.resend_otp_schema),
+  controller.resend_otp_for_forget_password,
+);
+
 //login
 router.post(
   "/login",
@@ -68,7 +76,15 @@ router.post(
   controller.forget_password,
 );
 
-//reset_password (requires access_token from forget_password + verify_otp flow)
+//verify_forget_password_otp — after forget_password, before reset_password
+router.post(
+  "/verify_forget_password_otp",
+  otp_rate_limiter,
+  validate_request(validations.verify_forget_password_otp_schema),
+  controller.verify_forget_password_otp,
+);
+
+//reset_password (requires access_token from verify_forget_password_otp)
 router.post(
   "/reset_password",
   verify_token,
@@ -100,8 +116,8 @@ router.get("/", verify_token, controller.get_all_users);
 //logout
 router.post(
   "/logout",
-  validate_request(validations.logout_schema),
   verify_token,
+  validate_request(validations.logout_schema),
   controller.logout_user,
 );
 

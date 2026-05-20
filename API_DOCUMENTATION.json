@@ -170,9 +170,28 @@
           "response_success": {
             "status": 200,
             "data": {
-              "otp": "6-digit numeric code"
+              "email": "user email"
             },
-            "message": "OTP sent successfully. Please verify OTP"
+            "message": "OTP sent to your email. Please verify OTP."
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/verify_forget_password_otp",
+          "description": "Verify OTP for forgot-password flow (after forget_password)",
+          "auth_required": false,
+          "request_body": {
+            "identifier": "string (email or phone), required",
+            "otp": "number - 6 digit code (0-999999), required",
+            "fcm_token": "string - optional"
+          },
+          "response_success": {
+            "status": 200,
+            "data": {
+              "access_token": "JWT token (use for reset_password)"
+            },
+            "message": "OTP verified successfully. You can now reset your password.",
+            "note": "refresh_token set in httpOnly cookie"
           }
         },
         {

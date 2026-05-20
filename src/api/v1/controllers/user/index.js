@@ -89,12 +89,31 @@ class UserController {
         identifier,
       });
 
-
       const response = responses.ok_response(
         data,
         "OTP sent to your email. Please verify OTP."
       );
       return res.status(response.status.code).json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  verify_forget_password_otp = async (req, res, next) => {
+    try {
+      const { identifier, otp, fcm_token } = req.body;
+
+      const data = await service.verify_forget_password_otp({
+        identifier,
+        otp,
+        fcm_token,
+      });
+
+      return responses.send_ok_with_refresh_cookie(
+        res,
+        data,
+        "OTP verified successfully. You can now reset your password."
+      );
     } catch (error) {
       next(error);
     }
@@ -144,6 +163,22 @@ class UserController {
 
       await service.resend_otp({ identifier });
 
+      const response = responses.ok_response(
+        null,
+        "OTP resent successfully. Please check your email."
+      );
+      return res.status(response.status.code).json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  //resend_otp_for_forget_password
+  resend_otp_for_forget_password = async (req, res, next) => {
+    try {
+      const { identifier } = req.body;
+
+      await service.resend_otp_for_forget_password({ identifier });
       const response = responses.ok_response(
         null,
         "OTP resent successfully. Please check your email."

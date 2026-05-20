@@ -282,9 +282,9 @@ class UserService {
         subject: "Password Reset OTP - Service Hub",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
-            <h2 style="color: #333;">Verify Your Account</h2>
+            <h2 style="color: #333;">Reset Your Password</h2>
             <p style="color: #555;">
-              Use the OTP below to verify your account. It expires in <strong>60 seconds</strong>.
+              Use the OTP below to reset your password. It expires in <strong>60 seconds</strong>.
             </p>
 
             <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; text-align: center; padding: 16px 0;">
@@ -302,10 +302,75 @@ class UserService {
     }
   }
 
-    return null;
+    return {
+      email: already_user.email,
+    };
   };
 
-  //Reset Password (requires access_token from forget_password flow, OTP already verified)
+  // Verify OTP for forgot-password flow (user must already be registered & verified)
+  verify_forget_password_otp = async ({ identifier, otp, fcm_token }) => {
+    const identifier_type = helper.validate_identifier(identifier);
+    const already_user = await helper.get_already_user({
+      identifier,
+      identifier_type,
+    });
+
+    if (!already_user) {
+      throw responses.not_found_response("User not found.");
+    }
+
+    const is_verified = already_user[`is_${identifier_type}_verified`];
+    if (!is_verified) {
+      throw responses.bad_request_response(
+        "Account is not verified. Please complete registration first."
+      );
+    }
+
+    if (!already_user.user_secrets?.otp) {
+      throw responses.bad_request_response(
+        "No OTP found. Please request a password reset OTP first."
+      );
+    }
+
+    const is_expired =
+      new Date(already_user.user_secrets.otp_expiration).getTime() <
+      new Date().getTime();
+
+    if (is_expired) {
+      throw responses.bad_request_response(
+        "OTP has expired. Please request a new one."
+      );
+    }
+
+    if (String(already_user.user_secrets.otp) !== String(otp)) {
+      throw responses.bad_request_response("Invalid OTP. Please try again.");
+    }
+
+    await helper.update_user_secret({
+      otp: null,
+      _exp: null,
+      id: already_user.user_secrets.id,
+    });
+
+    const { access_token, refresh_token } = await helper.create_user_session({
+      user: already_user,
+      fcm_token,
+    });
+
+    notifications.notification_handler({
+      title: "OTP Verified",
+      message: "You can now set a new password.",
+      recipient_id: already_user.id,
+      save_to_db: false,
+    });
+
+    return {
+      access_token,
+      refresh_token,
+    };
+  };
+
+  //Reset Password (requires access_token from verify_forget_password_otp)
   reset_password = async ({ user, password }) => {
     const already_user = await helper.get_already_user({
       find_user_obj: { id: user.id },
@@ -320,7 +385,7 @@ class UserService {
     let identifier = already_user.email;
     if (!identifier) identifier = already_user.phone;
 
-    // Reset password (OTP already verified in verify_otp step)
+    // Reset password (OTP already verified in verify_forget_password_otp step)
     const hashed_password = await helper.hash_password({
       password,
       identifier,
@@ -454,6 +519,74 @@ class UserService {
     }
 
     return { otp };
+  };
+
+  //resend_otp_for_forget_password
+  resend_otp_for_forget_password = async ({ identifier }) => {
+    const identifier_type = helper.validate_identifier(identifier);
+    const already_user = await helper.get_already_user({
+      identifier,
+      identifier_type,
+    });
+
+    if (!already_user) {
+      throw responses.not_found_response(
+        "This email is not associated with any user."
+      );
+    }
+
+    // Already verified check — no need to resend if already verified
+    const is_already_verified = already_user[`is_${identifier_type}_verified`];
+    if (!is_already_verified) {
+      throw responses.bad_request_response("Account is not verified. Please verify your account first.");
+    }
+
+    // Step 1: Clear expired OTP and expiry from DB first
+    await helper.update_user_secret({
+      otp: null,
+      _exp: null,
+      id: already_user.user_secrets.id,
+    });
+
+    // Step 2: Generate fresh OTP and new expiry
+    const otp = String(helper.generate_random_numeric_code({ length: 6 }));
+    const _exp = new Date(new Date().getTime() + 60 * 1000).toISOString();
+
+    // Step 3: Save new OTP and expiry in DB
+    await helper.update_user_secret({
+      otp,
+      _exp,
+      id: already_user.user_secrets.id,
+    });
+
+    // Step 4: Send new OTP via email
+    if (identifier_type === "email") {
+      try { 
+        await send_email({
+          from: `Service Hub <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
+          to: already_user.email, 
+          subject: "Password Reset OTP - Service Hub",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
+              <h2 style="color: #333;">Reset Your Password</h2>
+              <p style="color: #555;">
+                Use the OTP below to reset your password. It expires in <strong>60 seconds</strong>.
+              </p>
+              <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #4F46E5; text-align: center; padding: 16px 0;">
+                ${otp}
+              </div>
+              <p style="color: #999; font-size: 12px;">
+                If you did not request this, please ignore this email.
+              </p>
+            </div>
+          `,
+        });
+      } catch (emailError) {
+        throw emailError;
+      }
+    }
+
+    return { otp }; 
   };
 
   // Social Login: existing user → login | new user → auto-register (is_email_verified = true)

@@ -125,47 +125,44 @@ Note: Auth Required means you need to add header: Authorization: Bearer <access_
    
    Response:
    {
-     "otp": 123456,
-     "access_token": "jwt_access_token"
+     "data": { "email": "user@example.com" },
+     "message": "OTP sent to your email. Please verify OTP."
    }
-   
-   Note: Use this access_token in verify_otp and reset_password
 
 --------------------------------------------------------------------------------
 
-9. VERIFY OTP (For Password Reset)
+9. VERIFY FORGET PASSWORD OTP
    Method: POST
-   URL: {{base_url}}/user/verify_otp
-   Auth Required: YES (use access_token from forget_password)
-   Headers: Authorization: Bearer <access_token>
+   URL: {{base_url}}/user/verify_forget_password_otp
+   Auth Required: NO
    Body:
    {
+     "identifier": "dashti@gmail.com",
      "otp": 123456,
      "fcm_token": "optional_fcm_token"
    }
    
    Response:
    {
-     "access_token": "jwt_access_token",
-     "refresh_token": "jwt_refresh_token",
-     "is_profile_completed": true/false
+     "data": { "access_token": "jwt_access_token" },
+     "message": "OTP verified successfully. You can now reset your password."
    }
    
-   Note: Use this access_token in reset_password
+   Note: refresh_token in httpOnly cookie. Use access_token in reset_password.
 
 --------------------------------------------------------------------------------
 
 10. RESET PASSWORD
     Method: POST
     URL: {{base_url}}/user/reset_password
-    Auth Required: YES (use access_token from verify_otp)
+    Auth Required: YES (use access_token from verify_forget_password_otp)
     Headers: Authorization: Bearer <access_token>
     Body:
     {
       "password": "newpassword@123"
     }
     
-    Note: Flow: forget_password → verify_otp → reset_password
+    Note: Flow: forget_password → verify_forget_password_otp → reset_password
 
 --------------------------------------------------------------------------------
 

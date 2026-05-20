@@ -83,15 +83,14 @@ TC-AUTH-10 | Forget password – valid identifier
   URL: {{base_url}}/user/forget_password
   Body: { "identifier": "testuser@example.com" }
   Expected: 200
-  Result: otp, access_token (use this token for verify_otp and reset_password)
+  Result: email in response; then call verify_forget_password_otp, then reset_password
 
 TC-AUTH-11 | Verify OTP (password reset flow) – valid
   Method: POST
-  URL: {{base_url}}/user/verify_otp
-  Headers: Authorization: Bearer <access_token_from_forget_password>
-  Body: { "otp": 123456 }
+  URL: {{base_url}}/user/verify_forget_password_otp
+  Body: { "identifier": "testuser@example.com", "otp": 123456 }
   Expected: 200
-  Result: access_token, refresh_token (use new token for reset_password)
+  Result: access_token, refresh_token in cookie (use access_token for reset_password)
 
 TC-AUTH-12 | Reset password – valid
   Method: POST
