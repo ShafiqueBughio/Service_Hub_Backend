@@ -122,7 +122,7 @@ class UserService {
   };
 
   //Login User – allow login after register even if OTP not verified yet
-  login_user = async ({ identifier, password, fcm_token }) => {
+  login_user = async ({ identifier, password, fcm_token, user_type }) => {
     const identifier_type = helper.validate_identifier(identifier);
     const already_user = await helper.get_already_user({
       identifier,
@@ -132,6 +132,13 @@ class UserService {
     if (!already_user) {
       throw responses.bad_request_response(
         `This email is not associated with any user`
+      );
+    }
+
+    // Check user_type matches the registered account type
+    if (already_user.user_type !== user_type) {
+      throw responses.bad_request_response(
+        `This account is registered as a ${already_user.user_type.toLowerCase()}. Please select the correct account type.`
       );
     }
 
@@ -307,8 +314,10 @@ class UserService {
     };
   };
 
-  // Verify OTP for forgot-password flow (user must already be registered & verified)
-  verify_forget_password_otp = async ({ identifier, otp, fcm_token }) => {
+  // Verify OTP for forgot-password flow.
+  // Returns a short-lived reset_token (15 min) — NOT a login session.
+  // Frontend uses this reset_token as Bearer in the reset_password request only.
+  verify_forget_password_otp = async ({ identifier, otp }) => {
     const identifier_type = helper.validate_identifier(identifier);
     const already_user = await helper.get_already_user({
       identifier,
@@ -346,28 +355,17 @@ class UserService {
       throw responses.bad_request_response("Invalid OTP. Please try again.");
     }
 
+    // Clear OTP from DB so it cannot be reused
     await helper.update_user_secret({
       otp: null,
       _exp: null,
       id: already_user.user_secrets.id,
     });
 
-    const { access_token, refresh_token } = await helper.create_user_session({
-      user: already_user,
-      fcm_token,
-    });
+    // Issue a short-lived, single-purpose reset token (15 min, no session created)
+    const reset_token = token_service.generate_reset_token(already_user.id);
 
-    notifications.notification_handler({
-      title: "OTP Verified",
-      message: "You can now set a new password.",
-      recipient_id: already_user.id,
-      save_to_db: false,
-    });
-
-    return {
-      access_token,
-      refresh_token,
-    };
+    return { reset_token };
   };
 
   //Reset Password (requires access_token from verify_forget_password_otp)

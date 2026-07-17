@@ -47,12 +47,13 @@ class UserController {
 
   login_user = async (req, res, next) => {
     try {
-      const { identifier, password, fcm_token } = req.body;
+      const { identifier, password, fcm_token, user_type} = req.body;
 
       const data = await service.login_user({
         identifier,
         password,
         fcm_token,
+        user_type
       });
 
       return responses.send_ok_with_refresh_cookie(
@@ -101,19 +102,19 @@ class UserController {
 
   verify_forget_password_otp = async (req, res, next) => {
     try {
-      const { identifier, otp, fcm_token } = req.body;
+      const { identifier, otp } = req.body;
 
       const data = await service.verify_forget_password_otp({
         identifier,
         otp,
-        fcm_token,
       });
 
-      return responses.send_ok_with_refresh_cookie(
-        res,
+      // Return only a short-lived reset_token — no session, no login
+      const response = responses.ok_response(
         data,
-        "OTP verified successfully. You can now reset your password."
+        "OTP verified. Use the reset_token to reset your password within 15 minutes."
       );
+      return res.status(response.status.code).json(response);
     } catch (error) {
       next(error);
     }

@@ -6,6 +6,7 @@ const user_type_check = require("@v1_middlewares/user_type_check.middleware");
 const validate_request = require("@v1_middlewares/validate_request_joi.middleware");
 const verify_token = require("@v1_middlewares/verify_token.middleware");
 const verify_token_optional = require("@v1_middlewares/verify_token_optional.middleware");
+const verify_reset_token = require("@v1_middlewares/verify_reset_token.middleware");
 const handle_multipart_data = require("@v1_middlewares/populate_multipart_data.middleware");
 const parse_multipart_json_fields = require("@v1_middlewares/parse_multipart_json_fields.middleware");
 const upload_media = require("@api/v1/middlewares/upload_media.middleware");
@@ -84,10 +85,10 @@ router.post(
   controller.verify_forget_password_otp,
 );
 
-//reset_password (requires access_token from verify_forget_password_otp)
+//reset_password — requires reset_token from verify_forget_password_otp (NOT a login session token)
 router.post(
   "/reset_password",
-  verify_token,
+  verify_reset_token,
   validate_request(validations.reset_password_schema),
   controller.reset_password,
 );

@@ -31,6 +31,9 @@ class UserSchema {
         .pattern(/^(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/)
         .max(16)
         .required(),
+      user_type: Joi.string()
+        .valid(...Object.keys(user_type))
+        .required()
     }).or("identifier", "email"),
   });
 
@@ -58,7 +61,6 @@ class UserSchema {
     body: Joi.object({
       identifier: Joi.string().max(100).required(),
       otp: Joi.number().integer().min(0).max(999999).required(),
-      fcm_token: Joi.string().optional(),
     }),
   });
 
