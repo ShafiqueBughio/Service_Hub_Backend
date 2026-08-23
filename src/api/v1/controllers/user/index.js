@@ -217,6 +217,9 @@ class UserController {
 
       await service.delete_user({ user });
 
+      //clear authentication cookie
+      responses.clear_refresh_token_cookie(res);
+      
       const response = responses.ok_response(
         null,
         `User deleted successfully.`
