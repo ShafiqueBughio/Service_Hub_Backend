@@ -138,7 +138,7 @@ class UserService {
     // Check user_type matches the registered account type
     if (already_user.user_type !== user_type) {
       throw responses.bad_request_response(
-        `This account is registered as a ${already_user.user_type.toLowerCase()}. Please select the correct account type.`
+        `Invalid credentials or account type.`
       );
     }
 

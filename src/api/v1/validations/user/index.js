@@ -299,7 +299,6 @@ class UserSchema {
     query: Joi.object({}),
     params: Joi.object({}),
     body: Joi.object({
-      refresh_token: Joi.string().required(),
       fcm_token: Joi.string().required(),
     }),
   });

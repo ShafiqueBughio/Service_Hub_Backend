@@ -7,27 +7,49 @@ class Notifications extends Firebase {
   }
 
   // Create payload for a single recipient
+  // #create_payload = ({
+  //   title,
+  //   message,
+  //   recipient_id,
+  //   metadata = {},
+  //   screen_name,
+  //   token,
+  // }) => {
+  //   return {
+  //     notification: {
+  //       title,
+  //       body: message,
+  //     },
+  //     data: {
+  //       recipient_id,
+  //       screen_name,
+  //       ...metadata,
+  //     },
+  //     token,
+  //   };
+  // };
+
   #create_payload = ({
-    title,
-    message,
-    recipient_id,
-    metadata = {},
-    screen_name,
-    token,
-  }) => {
-    return {
-      notification: {
-        title,
-        body: message,
-      },
-      data: {
-        recipient_id,
-        screen_name,
-        ...metadata,
-      },
-      token,
-    };
+  title,
+  message,
+  recipient_id,
+  metadata = {},
+  screen_name,
+  fid,
+}) => {
+  return {
+    notification: {
+      title,
+      body: message,
+    },
+    data: {
+      recipient_id,
+      screen_name,
+      ...metadata,
+    },
+    fid,
   };
+};
 
   // Send a single notification
   #send_notification = async (payload) => {
