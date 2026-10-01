@@ -275,7 +275,7 @@ Note: Auth Required means you need to add header: Authorization: Bearer <access_
     Body:
     {
       "refresh_token": "your_refresh_token",
-      "fcm_token": "new_fcm_token"
+      "fid": "new_fid_token"
     }
 
 --------------------------------------------------------------------------------

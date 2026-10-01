@@ -35,7 +35,7 @@ model users {
   email                String?  @db.VarChar(255)
   phone                String?  @db.VarChar(255)
   mute_notifications   Boolean? @default(false)
-  social_account_token String?  @db.VarChar(255)
+  social_account_token String?  @db.Text
   is_email_verified    Boolean  @default(false)
   is_phone_verified    Boolean  @default(false)
   is_completed         Boolean  @default(false)

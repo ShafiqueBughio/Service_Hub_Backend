@@ -752,7 +752,7 @@ TC-ADM-03 | Get all users – non-admin
 
 Quick checklist:
   [ ] Auth: register, verify_otp, login, forget/reset/change password, refresh, logout
-  [ ] User profile: create_user_profile, get/update profile, profile_picture, me, update_fcm
+  [ ] User profile: create_user_profile, get/update profile, profile_picture, me, update_fid
   [ ] Contractor profile: create_contractor_profile, update profile
   [ ] Job: create, get, update, delete, my-jobs (pending/active/completed), list
   [ ] Bids: place bid, get bids by job, accept bid, my-bids (pending/active/past)

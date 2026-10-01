@@ -1,4 +1,6 @@
 const Firebase = require("@configs/firebase/firebase.config");
+const { getFirebaseApp } = require("@configs/firebase/firebase.config");
+const { getMessaging } = require("firebase-admin/messaging");
 const { prisma } = require("@configs/prisma");
 
 class Notifications extends Firebase {
@@ -30,39 +32,43 @@ class Notifications extends Firebase {
   // };
 
   #create_payload = ({
-  title,
-  message,
-  recipient_id,
-  metadata = {},
-  screen_name,
-  fid,
-}) => {
-  return {
-    notification: {
-      title,
-      body: message,
-    },
-    data: {
-      recipient_id,
-      screen_name,
-      ...metadata,
-    },
+    title,
+    message,
+    recipient_id,
+    metadata = {},
+    screen_name,
     fid,
+  }) => {
+    return {
+      notification: {
+        title,
+        body: message,
+      },
+      data: {
+        recipient_id: String(recipient_id),
+        screen_name: screen_name ?? "",
+        ...Object.fromEntries(
+          Object.entries(metadata).map(([k, v]) => [k, String(v)])
+        ),
+      },
+      token: fid,   // Firebase Admin needs "token" field, not "fid"
+    };
   };
-};
 
   // Send a single notification
   #send_notification = async (payload) => {
     try {
-      if (!this.admin) {
+      const app = getFirebaseApp();
+      if (!app) {
         console.warn("Firebase is not configured. Notification not sent.");
         return { success: false, error: "Firebase not configured" };
       }
-      const response = await this.admin.messaging().send(payload);
+      // v14: use getMessaging(app).send(payload)
+      const response = await getMessaging(app).send(payload);
       console.log("Notification sent:", response);
       return { success: true, response };
     } catch (error) {
-      console.error("Notification send error:", error);
+      console.error("Notification send error:", error.message);
       return { success: false, error };
     }
   };
@@ -77,27 +83,49 @@ class Notifications extends Firebase {
   };
 
   // Save notification to DB
+  // #save_notification = async ({
+  //   title,
+  //   message,
+  //   recipient_id,
+  //   metadata = {},
+  //   screen_name,
+  // }) => {
+  //   try {
+  //     return await prisma.notifications.create({
+  //       data: {
+  //         title,
+  //         message,
+  //         recipient_id,
+  //         metadata,
+  //         screen_name,
+  //       },
+  //     });
+  //   } catch (error) {
+  //     console.error("Notification save error:", error);
+  //   }
+  // };
+
   #save_notification = async ({
-    title,
-    message,
-    recipient_id,
-    metadata = {},
-    screen_name,
-  }) => {
-    try {
-      return await prisma.notifications.create({
-        data: {
-          title,
-          message,
-          recipient_id,
-          metadata,
-          screen_name,
-        },
-      });
-    } catch (error) {
-      console.error("Notification save error:", error);
-    }
-  };
+  title,
+  message,
+  recipient_id,
+  metadata = {},
+  screen_name,
+}) => {
+  try {
+    return await prisma.notifications.create({
+      data: {
+        title,
+        message,
+        recipient_id,
+        metadata: JSON.stringify(metadata),
+        screen_name,
+      },
+    });
+  } catch (error) {
+    console.error("Notification save error:", error);
+  }
+};
 
   // Public handler to send and save notification
   notification_handler = async ({
@@ -120,7 +148,7 @@ class Notifications extends Firebase {
             recipient_id,
             metadata,
             screen_name,
-            token: session.fcm_token,
+            fid: session.fcm_token,
           })
         );
 

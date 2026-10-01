@@ -503,7 +503,7 @@
           "auth_required": true,
           "request_body": {
             "refresh_token": "string - required",
-            "fcm_token": "string - required"
+            "fcm": "string - required"
           },
           "response_success": {
             "status": 200,

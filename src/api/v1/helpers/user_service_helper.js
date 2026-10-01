@@ -1,5 +1,7 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const { getAuth } = require("firebase-admin/auth");
+const { getFirebaseApp } = require("@configs/firebase/firebase.config");
 
 const TokenService = require("@v1_services/token");
 const { prisma } = require("@configs/prisma");
@@ -63,23 +65,22 @@ class UserServiceHelpers {
     }
   };
 
-  // Verify Google Token
+  // Verify Google Token using firebase-admin
   verify_google_token = async ({ token }) => {
     try {
-      const ticket = await client.verifyIdToken({
-        idToken: token,
-        audience: process.env.GOOGLE_CLIENT_ID,
-      });
-      const payload = ticket.getPayload();
-      const { sub, email, picture, name } = payload;
+      const app = getFirebaseApp();
+      if (!app) {
+        throw new Error("Firebase Admin is not initialized. Check FIREBASE_AUTH env variable.");
+      }
+      const decoded = await getAuth(app).verifyIdToken(token);
       return {
-        email,
-        profile_picture: picture,
-        user_name: name,
+        email: decoded.email || "",
+        profile_picture: decoded.picture || "",
+        user_name: decoded.name || "",
       };
     } catch (error) {
-      console.log(error);
-      throw responses.server_error_response("Error verifying Google token");
+      console.error("[Google Token] ERROR:", error.message);
+      throw responses.server_error_response("Error verifying Google token: " + error.message);
     }
   };
 

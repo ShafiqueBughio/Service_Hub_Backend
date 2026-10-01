@@ -3,9 +3,11 @@
 const UserService = require("@api/v1/services/user");
 const Responses = require("@constants/responses");
 const send_email = require("@configs/email");
+const Notifications = require("@api/v1/services/notifications");
 
 const responses = new Responses();
 const service = new UserService();
+const notifications = new Notifications("servicelink-auth");
 
 const mergeProfileMedia = (body, media = {}) => ({
   ...body,
@@ -147,6 +149,14 @@ class UserController {
       const { password, old_password } = req.body;
 
       await service.change_password({ user, password, old_password });
+
+      // Send notification to user
+      notifications.notification_handler({
+        title: "Password Changed",
+        message: `Your password was changed successfully at ${new Date().toLocaleString()}.`,
+        recipient_id: user.id,
+        save_to_db: true,
+      });
 
       const response = responses.ok_response(
         null,
@@ -460,22 +470,51 @@ class UserController {
     }
   };
 
+  // update_fcm_token = async (req, res, next) => {
+  //   try {
+  //     const { refresh_token, fcm_token } = req.body;
+
+  //     await service.change_fcm({ refresh_token, fcm_token });
+
+  //     const response = responses.update_success_response(
+  //       null,
+  //       "Successfully updated user fcm"
+  //     );
+  //     return res.status(response.status.code).json(response);
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // };
+
   update_fcm_token = async (req, res, next) => {
-    try {
-      const { refresh_token, fcm_token } = req.body;
+  try {
+    const { fcm_token } = req.body;
 
-      await service.change_fcm({ refresh_token, fcm_token });
+    const refresh_token = req.cookies.refresh_token;
 
-      const response = responses.update_success_response(
-        null,
-        "Successfully updated user fcm"
+    if (!refresh_token) {
+      const response = responses.unauthorized_response(
+        "Refresh token cookie not found."
       );
-      return res.status(response.status.code).json(response);
-    } catch (error) {
-      next(error);
-    }
-  };
 
+      return res.status(response.status.code).json(response);
+    }
+
+    await service.change_fcm({
+      refresh_token,
+      fcm_token,
+    });
+
+    const response = responses.update_success_response(
+      null,
+      "Successfully updated user fcm"
+    );
+
+    return res.status(response.status.code).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
   change_location = async (req, res, next) => {
     try {
       const { user } = req.user;
