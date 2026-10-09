@@ -156,18 +156,18 @@ class UserServiceHelpers {
     });
   };
 
-  //Create User Details
+  //Create User Details — upserts if row already exists (e.g. social login pre-creates it)
   create_user_details = async ({ data, tx }) => {
+    const { user_id, ...rest } = data;
+    const upsertArgs = {
+      where: { user_id },
+      update: rest,
+      create: data,
+    };
     if (tx) {
-      return await tx.user_details.create({
-        data,
-      });
+      return await tx.user_details.upsert(upsertArgs);
     }
-    return await prisma.user_details.create({
-      data: {
-        ...data,
-      },
-    });
+    return await prisma.user_details.upsert(upsertArgs);
   };
 
   create_provider_documents = async ({

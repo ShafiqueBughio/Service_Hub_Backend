@@ -170,7 +170,7 @@ class UserService {
     // Send login notification via FCM
     notifications.notification_handler({
       title: "New Login",
-      message: "You have successfully logged in to Service Hub.",
+      message: "You have successfully logged in to Service Link.",
       recipient_id: already_user.id,
       save_to_db: false,
     });
@@ -238,7 +238,7 @@ class UserService {
     // Send welcome notification via FCM
     notifications.notification_handler({
       title: "Account Verified",
-      message: "Your account has been verified successfully. Welcome to Service Hub!",
+      message: "Your account has been verified successfully. Welcome to Service Link!",
       recipient_id: already_user.id,
       save_to_db: false, // auth notification — no need to save in DB
     });
@@ -428,7 +428,47 @@ class UserService {
       password: hashed_password,
       id: already_user.user_secrets.id,
     });
+
+     // Send Change Password Notification
+    notifications.notification_handler({
+      title: "Password Changed",
+      message: "Your Password has been changed successfully!",
+      recipient_id: already_user.id,
+      save_to_db: true,
+    });
   };
+
+  //set_password
+   set_password = async ({ user, password }) => {
+    const already_user = await helper.get_already_user({
+      find_user_obj: { id: user.id },
+    });
+    if (!already_user) {
+      throw responses.not_found_response(
+        "This email is not associated with any user."
+      );
+    }
+
+  const identifier = already_user.email || already_user.phone;
+
+    const hashed_password = await helper.hash_password({
+      password,
+      identifier,
+    });
+    await helper.update_user_secret({
+      password: hashed_password,
+      id: already_user.user_secrets.id,
+    });
+
+     // Send Set Password Notification
+    notifications.notification_handler({
+      title: "Set Password",
+      message: "Your Password has been Set successfully!",
+      recipient_id: already_user.id,
+      save_to_db: true,
+    });
+  };
+
 
   create_documents = async ({ id_front, id_back, user_id }) => {
     const user = await helper.get_already_user({
@@ -643,8 +683,8 @@ class UserService {
     notifications.notification_handler({
       title: is_new_user ? "Welcome" : "New Login",
       message: is_new_user
-        ? "Your account has been created successfully. Welcome to Service Hub!"
-        : "You have successfully logged in to Service Hub.",
+        ? "Your account has been created successfully. Welcome to Service Link!"
+        : "You have successfully logged in to Service Link.",
       recipient_id: user.id,
       save_to_db: false,
     });
@@ -696,6 +736,7 @@ class UserService {
       },
       include: {
         user_details: true,
+        user_secrets: { select: { password: true } },
         contractor_profile: {
           include: {
             contractor_experiences: true,
@@ -711,7 +752,14 @@ class UserService {
     if (!db_user) {
       throw responses.not_found_response("User not Valid.");
     }
-    return { db_user };
+
+    // Derive has_password — true if a hashed password exists, false for social-only accounts
+    const has_password = !!db_user.user_secrets?.password;
+
+    // Remove user_secrets from the response (never expose password hash to client)
+    const { user_secrets, ...safe_user } = db_user;
+
+    return { db_user: { ...safe_user, has_password } };
   };
 
   //Edit User Profile
@@ -749,6 +797,8 @@ class UserService {
       if (data.contact_phone !== undefined) userDetailsData.contact_phone = data.contact_phone;
       if (data.gender !== undefined) userDetailsData.gender = data.gender;
       if (data.profile_picture !== undefined) userDetailsData.profile_picture = profile_picture;
+ 
+
 
       if (Object.keys(userDetailsData).length > 0) {
         await helper.update_user_details({
@@ -881,6 +931,7 @@ class UserService {
         gender: data.gender,
         address: data.address,
         contact_phone: data.contact_phone,
+        contact_email:data.contact_email,
         profile_picture,
         user_id: user.id,
       };

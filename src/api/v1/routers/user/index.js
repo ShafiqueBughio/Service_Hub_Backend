@@ -101,6 +101,14 @@ router.post(
   controller.change_password,
 );
 
+//set_password
+router.post(
+  "/set_password",
+  verify_token,
+  validate_request(validations.set_password_schema),
+  controller.set_password 
+)
+
 //social_login
 router.post(
   "/social_login",

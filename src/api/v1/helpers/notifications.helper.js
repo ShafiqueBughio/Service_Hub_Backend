@@ -7,7 +7,7 @@ class NotificationHelper {
         recipient_id: user_id,
       },
       orderBy:{
-        createdAt:"desc"
+        created_at:"desc"
       }
     });
 

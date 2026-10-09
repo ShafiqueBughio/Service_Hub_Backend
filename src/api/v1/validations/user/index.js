@@ -90,6 +90,18 @@ class UserSchema {
     }),
   });
 
+  //set_password schema
+    set_password_schema = Joi.object({
+    query: Joi.object({}),
+    params: Joi.object({}),
+    body: Joi.object({
+      password: Joi.string()
+        .pattern(/^(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/)
+        .max(16)
+        .required(),
+    }),
+  });
+
   resend_otp_schema = Joi.object({
     query: Joi.object({}),
     params: Joi.object({}),
@@ -170,10 +182,7 @@ class UserSchema {
       first_name: Joi.string().required(),
       last_name: Joi.string().required(),
       location: Joi.string().required(),
-      date_of_birth: Joi.date().required(),
-      latitude: Joi.string().required(),
       profile_picture: Joi.string().optional(),
-      longitude: Joi.string().required(),
       city: Joi.string().required(),
       state: Joi.string().required(),
       contact_email: Joi.string().email(),
