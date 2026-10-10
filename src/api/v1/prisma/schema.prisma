@@ -214,7 +214,7 @@ model notifications {
   title        String?      @db.VarChar(255)
   message      String?      @db.LongText
   recipient_id String?
-  metadata     String?      @db.VarChar(255)
+  metadata     String?      @db.Text
   is_read      Boolean      @default(false)
   is_admin     Boolean      @default(false)
   screen_name  screen_name?
@@ -223,6 +223,8 @@ model notifications {
   updated_at DateTime @updatedAt
 
   notification_receivers users? @relation(fields: [recipient_id], name: "notification_receivers", references: [id], onDelete: Cascade)
+
+  @@index([recipient_id, created_at])
 }
 
 model block_user {
