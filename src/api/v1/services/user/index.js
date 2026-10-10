@@ -44,6 +44,12 @@ class UserService {
 
     // If user already exists, reject registration
     if (already_user) {
+      if(!already_user.is_email_verified){
+        throw responses.bad_request_response(
+        `Account Not Verified, Please Verify account first.`,
+        null,"ACCOUNT_NOT_VERIFIED"
+      );
+      }
       throw responses.bad_request_response(
         `An account with this ${identifier_type} already exists. Please login instead.`
       );
@@ -144,7 +150,8 @@ class UserService {
 
     if(!already_user?.is_email_verified) {
       throw responses.bad_request_response(
-        `Account is not verified. Please verify your account first.`
+        `Account Not Verified, Please Verify account first.`,
+        null,"ACCOUNT_NOT_VERIFIED"
       );
     }
 

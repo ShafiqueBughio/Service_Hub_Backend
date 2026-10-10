@@ -13,7 +13,7 @@ class NotificationHelper {
   get_all_notifications = async ({ user_id, days, page, limit }) => {
     // Sanitise inputs
     const safeDays  = ALLOWED_DAYS.includes(Number(days))  ? Number(days)  : DEFAULT_DAYS;
-    const safePage  = Number(page)  >= 1                   ? Number(page)  : 1;
+    const safePage  = Number(page)  >= 1 ? Number(page)  : 1;
     const safeLimit = Math.min(Number(limit) >= 1 ? Number(limit) : DEFAULT_LIMIT, MAX_LIMIT);
     const skip      = (safePage - 1) * safeLimit;
 

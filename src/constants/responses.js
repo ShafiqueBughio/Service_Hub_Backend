@@ -91,10 +91,13 @@ class Responses {
     message,
   });
 
-  bad_request_response = (error = null, data = null) => ({
+  bad_request_response = (error = null, data = null,code = null) => ({
     status: {
       code: 400,
       success: false,
+    },
+    error:{
+      code : code
     },
     data,
     message: error,
