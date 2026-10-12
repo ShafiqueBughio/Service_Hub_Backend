@@ -150,6 +150,7 @@ router.patch(
   "/profile",
   verify_token,
   handle_multipart_data(),
+  parse_multipart_json_fields,
   upload_media,
   validate_request(validations.update_profile_schema),
   controller.update_profile,

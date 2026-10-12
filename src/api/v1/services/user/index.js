@@ -764,7 +764,7 @@ class UserService {
     const has_password = !!db_user.user_secrets?.password;
 
     // Remove user_secrets from the response (never expose password hash to client)
-    const { user_secrets, ...safe_user } = db_user;
+    const { user_secrets,social_account_token, ...safe_user } = db_user;
 
     return { db_user: { ...safe_user, has_password } };
   };
@@ -803,8 +803,9 @@ class UserService {
       if (data.state !== undefined) userDetailsData.state = data.state;
       if (data.contact_phone !== undefined) userDetailsData.contact_phone = data.contact_phone;
       if (data.gender !== undefined) userDetailsData.gender = data.gender;
+      if (data.email !== undefined) userDetailsData.contact_email = data.email;
       if (data.profile_picture !== undefined) userDetailsData.profile_picture = profile_picture;
- 
+
 
 
       if (Object.keys(userDetailsData).length > 0) {
@@ -868,6 +869,60 @@ class UserService {
             })),
           });
         }
+
+        // Business license — replace existing
+        if (data.business_license !== undefined) {
+          await tx.contractor_documents.deleteMany({
+            where: {
+              contractor_profile_id: db_user.contractor_profile.id,
+              document_type: "BUSINESS_LICENSE",
+            },
+          });
+          if (data.business_license) {
+            await tx.contractor_documents.create({
+              data: {
+                contractor_profile_id: db_user.contractor_profile.id,
+                document_type: "BUSINESS_LICENSE",
+                document_url: data.business_license,
+              },
+            });
+          }
+        }
+
+        // Certifications — replace all with the new complete set
+        if (data.certifications !== undefined) {
+          await tx.contractor_documents.deleteMany({
+            where: {
+              contractor_profile_id: db_user.contractor_profile.id,
+              document_type: "CERTIFICATION",
+            },
+          });
+          if (data.certifications.length > 0) {
+            await tx.contractor_documents.createMany({
+              data: data.certifications.map((url) => ({
+                contractor_profile_id: db_user.contractor_profile.id,
+                document_type: "CERTIFICATION",
+                document_url: url,
+              })),
+            });
+          }
+        }
+
+        // Portfolio images — replace all with the new complete set
+        if (data.portfolio_images !== undefined) {
+          await tx.contractor_portfolio.deleteMany({
+            where: { contractor_profile_id: db_user.contractor_profile.id },
+          });
+          if (data.portfolio_images.length > 0) {
+            await tx.contractor_portfolio.createMany({
+              data: data.portfolio_images.map((url) => ({
+                contractor_profile_id: db_user.contractor_profile.id,
+                image_url: url,
+              })),
+            });
+          }
+        }
+
       }
     });
   };

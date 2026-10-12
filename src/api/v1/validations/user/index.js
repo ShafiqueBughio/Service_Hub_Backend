@@ -202,6 +202,7 @@ class UserSchema {
       city: Joi.string().required(),
       state: Joi.string().required(),
       contact_phone: Joi.string().optional(),
+      contact_email: Joi.string().email().required(),
       gender: Joi.string().valid("MALE", "FEMALE", "OTHER").required(),
       profile_picture: Joi.string().optional(),
     }),
@@ -218,6 +219,7 @@ class UserSchema {
       city: Joi.string().required(),
       state: Joi.string().required(),
       contact_phone: Joi.string().required(),
+      contact_email: Joi.string().email().required(),
       gender: Joi.string().valid("MALE", "FEMALE", "OTHER").required(),
       // Contractor specific
       profile_picture: Joi.string().optional(),
@@ -259,6 +261,7 @@ class UserSchema {
       city: Joi.string(),
       state: Joi.string(),
       contact_phone: Joi.string(),
+      email: Joi.string().email(),
       gender: Joi.string().valid("MALE", "FEMALE", "OTHER"),
       // Contractor specific (optional)
       profile_picture: Joi.string(),
@@ -280,6 +283,9 @@ class UserSchema {
           longitude: Joi.string(),
         }),
       ),
+      business_license: Joi.string().optional(),
+      certifications: Joi.array().items(Joi.string()).optional(),
+      portfolio_images: Joi.array().items(Joi.string()).optional(),
     }),
   });
 
