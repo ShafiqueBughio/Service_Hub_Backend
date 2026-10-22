@@ -15,6 +15,11 @@ const fields = [
   { name: "community_image", maxCount: 1 },
   { name: "id_front", maxCount: 1 },
   { name: "id_back", maxCount: 1 },
+  // Identity verification
+  { name: "cnic_front", maxCount: 1 },
+  { name: "cnic_back", maxCount: 1 },
+  { name: "selfie", maxCount: 1 },
+  
   { name: "post_image", maxCount: 1 },
   { name: "attachment", maxCount: 10 },
 ];

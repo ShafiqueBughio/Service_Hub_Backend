@@ -13,6 +13,12 @@ enum user_type {
   ADMIN
 }
 
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
 enum Mute_duration {
   EIGHT_HOURS
   ONE_WEEK
@@ -48,6 +54,8 @@ model users {
   user_secrets           user_secrets?
   user_details           user_details?
   contractor_profile     contractor_profile?
+  identity_verification identity_verification? @relation("IdentityVerificationOwner")
+  identity_reviews identity_verification[] @relation("IdentityVerificationReviewer")
   user_sessions          user_sessions[]
   help_and_feedback      help_and_feedback[] @relation("senders")
   notification_receivers notifications[]     @relation("notification_receivers")
@@ -431,3 +439,29 @@ model Review {
   @@index([reviewer_id])
   @@map("reviews")
 }
+//verification model for cnic and selfie verification.
+model identity_verification {
+  id      String @id @default(uuid())
+  user_id String @unique
+
+  // CNIC images and selfie storage paths
+  cnic_front_url String @db.VarChar(500)
+  cnic_back_url  String @db.VarChar(500)
+  selfie_url     String @db.VarChar(500)
+
+  // Admin verification
+  verification_status VerificationStatus @default(PENDING)
+  rejection_reason    String? @db.Text
+  reviewed_by         String?
+  reviewed_at         DateTime?
+
+  user users @relation("IdentityVerificationOwner", fields: [user_id], references: [id], onDelete: Cascade)
+
+  reviewed_by_user users? @relation("IdentityVerificationReviewer", fields: [reviewed_by], references: [id], onDelete: SetNull)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("identity_verifications")
+}
+

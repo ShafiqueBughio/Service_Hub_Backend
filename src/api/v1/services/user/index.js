@@ -984,6 +984,10 @@ class UserService {
       (area) => area?.location
     );
 
+    const cnic_front = storeMediaPath(data?.cnic_front);
+    const cnic_back = storeMediaPath(data?.cnic_back);
+    const selfie = storeMediaPath(data?.selfie);
+
     await prisma.$transaction(async (tx) => {
       const userDetailsData = {
         first_name: data.first_name,
