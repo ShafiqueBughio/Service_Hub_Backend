@@ -88,6 +88,20 @@ const formatContractorProfile = (contractor_profile) => {
   };
 };
 
+const formatIdentityVerification = (identity) => {
+  if (!identity) return null;
+
+  return {
+    id: identity.id,
+    cnic_front_url: normalizeFileUrl(identity.cnic_front_url),
+    cnic_back_url: normalizeFileUrl(identity.cnic_back_url),
+    selfie_url: normalizeFileUrl(identity.selfie_url),
+    verification_status: identity.verification_status,
+    rejection_reason: identity.rejection_reason,
+    reviewed_at: identity.reviewed_at,
+  };
+};
+
 const formatCreateProfileResponse = (db_user) => {
   let userDetails = formatUserDetails(db_user.user_details);
 
@@ -118,11 +132,15 @@ const formatCreateProfileResponse = (db_user) => {
       is_phone_verified: db_user.is_phone_verified,
     },
     userDetails,
+    identity_verification: formatIdentityVerification(
+      db_user.identity_verification
+    ),
   };
 };
 
 module.exports = {
   formatCreateProfileResponse,
+  formatIdentityVerification,
   formatUserDetails,
   formatContractorProfile,
   normalizeFileUrl,

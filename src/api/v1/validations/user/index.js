@@ -189,9 +189,10 @@ class UserSchema {
       contact_phone: Joi.string().required(),
       gender: Joi.string().valid("MALE", "FEMALE", "OTHER"),
       address: Joi.string(),
-      cnic_front : Joi.string().required(),
-      cnic_back : Joi.string().required(),
-      selfie : Joi.string().required()
+      // Optional on update — if any identity field is sent, status resets to PENDING
+      cnic_front: Joi.string().optional(),
+      cnic_back: Joi.string().optional(),
+      selfie: Joi.string().optional(),
     }),
   });
 
@@ -208,9 +209,10 @@ class UserSchema {
       contact_email: Joi.string().email().required(),
       gender: Joi.string().valid("MALE", "FEMALE", "OTHER").required(),
       profile_picture: Joi.string().optional(),
-      cnic_front : Joi.string().required(),
-      cnic_back : Joi.string().required(),
-      selfie : Joi.string().required()
+      // URL string and/or multipart file (merged into body before validation)
+      cnic_front: Joi.string().required(),
+      cnic_back: Joi.string().required(),
+      selfie: Joi.string().required(),
     }),
   });
 
@@ -254,9 +256,10 @@ class UserSchema {
       business_license: Joi.string().optional(), // URL after upload
       certifications: Joi.array().items(Joi.string()).optional(), // URLs after upload
       portfolio_images: Joi.array().items(Joi.string()).optional(), // URLs after upload
-      cnic_front : Joi.string().required(),
-      cnic_back : Joi.string().required(),
-      selfie : Joi.string().required()
+      // URL string and/or multipart file (merged into body before validation)
+      cnic_front: Joi.string().required(),
+      cnic_back: Joi.string().required(),
+      selfie: Joi.string().required(),
     }),
   });
 
@@ -295,9 +298,10 @@ class UserSchema {
       business_license: Joi.string().optional(),
       certifications: Joi.array().items(Joi.string()).optional(),
       portfolio_images: Joi.array().items(Joi.string()).optional(),
-      cnic_front : Joi.string().required(),
-      cnic_back : Joi.string().required(),
-      selfie : Joi.string().required()
+      // Optional — updating any one resets verification_status to PENDING
+      cnic_front: Joi.string().optional(),
+      cnic_back: Joi.string().optional(),
+      selfie: Joi.string().optional(),
     }),
   });
 

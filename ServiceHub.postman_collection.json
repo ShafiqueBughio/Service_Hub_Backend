@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "ServiceHub API",
-    "description": "Complete API collection for ServiceHub backend. Base URL: http://localhost:8000/api/v1",
+    "description": "Complete API collection for ServiceHub backend. Base URL: http://localhost:8000/api/v1\n\nIdentity verification: create/update profile accepts cnic_front, cnic_back, selfie (multipart files or URL strings). On create and whenever any of these fields change on update, verification_status is set to PENDING.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -391,6 +391,87 @@
           "response": []
         },
         {
+          "name": "Resend OTP (Forget Password)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/resend_otp_for_forget_password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "resend_otp_for_forget_password"
+              ]
+            },
+            "description": "Resend OTP for forget-password flow.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"user@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Forget Password OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/verify_forget_password_otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "verify_forget_password_otp"
+              ]
+            },
+            "description": "Step 2 of password reset. Returns short-lived reset_token (NOT a login session). Use that token as Bearer for Reset Password.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"user@example.com\",\n  \"otp\": 123456\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res && res.data && res.data.reset_token) {",
+                  "  pm.collectionVariables.set('access_token', res.data.reset_token);",
+                  "  console.log('reset_token saved to access_token for Reset Password');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Reset Password",
           "request": {
             "method": "POST",
@@ -414,7 +495,7 @@
                 "reset_password"
               ]
             },
-            "description": "Step 3 of password reset. Requires access_token from forget_password flow.",
+            "description": "Step 3 of password reset. Requires Bearer reset_token from Verify Forget Password OTP (not a normal login access_token).",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"password\": \"NewPass@1234\"\n}",
@@ -455,6 +536,43 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"old_password\": \"Test@1234\",\n  \"password\": \"NewPass@1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/set_password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "set_password"
+              ]
+            },
+            "description": "Set password for accounts that do not have one yet (e.g. social login). Requires Bearer access_token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"Test@1234\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -558,7 +676,7 @@
                 "profile"
               ]
             },
-            "description": "Get logged-in user profile with all details."
+            "description": "Get logged-in user profile with all details including identity_verification (cnic_front_url, cnic_back_url, selfie_url, verification_status: PENDING | VERIFIED | REJECTED)."
           },
           "response": []
         },
@@ -567,10 +685,6 @@
           "request": {
             "method": "PATCH",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
               {
                 "key": "Authorization",
                 "value": "Bearer {{access_token}}"
@@ -586,15 +700,64 @@
                 "profile"
               ]
             },
-            "description": "Update profile. Works for both USER and CONTRACTOR. gender: MALE | FEMALE | OTHER",
+            "description": "Update USER profile (multipart). Optional identity fields: cnic_front, cnic_back, selfie (file or leave disabled). Updating ANY one of them resets verification_status to PENDING.",
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"address\": \"123 Main St\",\n  \"city\": \"New York\",\n  \"state\": \"NY\",\n  \"contact_phone\": \"+1234567890\",\n  \"gender\": \"MALE\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "first_name",
+                  "type": "text",
+                  "value": "John"
+                },
+                {
+                  "key": "last_name",
+                  "type": "text",
+                  "value": "Doe"
+                },
+                {
+                  "key": "address",
+                  "type": "text",
+                  "value": "123 Main St"
+                },
+                {
+                  "key": "city",
+                  "type": "text",
+                  "value": "New York"
+                },
+                {
+                  "key": "state",
+                  "type": "text",
+                  "value": "NY"
+                },
+                {
+                  "key": "contact_phone",
+                  "type": "text",
+                  "value": "+1234567890"
+                },
+                {
+                  "key": "gender",
+                  "type": "text",
+                  "value": "MALE"
+                },
+                {
+                  "key": "cnic_front",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true
+                },
+                {
+                  "key": "cnic_back",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true
+                },
+                {
+                  "key": "selfie",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true
                 }
-              }
+              ]
             }
           },
           "response": []
@@ -605,10 +768,6 @@
             "method": "PATCH",
             "header": [
               {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
                 "key": "Authorization",
                 "value": "Bearer {{access_token}}"
               }
@@ -623,15 +782,84 @@
                 "profile"
               ]
             },
-            "description": "Update CONTRACTOR profile including services, experiences, service_areas.",
+            "description": "Update CONTRACTOR profile (multipart). Arrays (services, experiences, service_areas) as JSON strings. Optional: cnic_front, cnic_back, selfie — updating any one resets verification_status to PENDING.",
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"Ali\",\n  \"last_name\": \"Khan\",\n  \"address\": \"456 Oak Ave\",\n  \"city\": \"Chicago\",\n  \"state\": \"IL\",\n  \"contact_phone\": \"+1987654321\",\n  \"gender\": \"MALE\",\n  \"about\": \"Professional plumber with 5 years experience\",\n  \"services\": [\n    \"Plumbing\",\n    \"Pipe Fitting\"\n  ],\n  \"experiences\": [\n    {\n      \"company\": \"ABC Plumbing Co\",\n      \"job_type\": \"Full Time\",\n      \"designation\": \"Senior Plumber\",\n      \"start_year\": \"2019\",\n      \"end_year\": \"2023\"\n    }\n  ],\n  \"service_areas\": [\n    {\n      \"location\": \"New York, NY\",\n      \"latitude\": \"40.7128\",\n      \"longitude\": \"-74.0060\"\n    }\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "first_name",
+                  "type": "text",
+                  "value": "Ali"
+                },
+                {
+                  "key": "last_name",
+                  "type": "text",
+                  "value": "Khan"
+                },
+                {
+                  "key": "address",
+                  "type": "text",
+                  "value": "456 Oak Ave"
+                },
+                {
+                  "key": "city",
+                  "type": "text",
+                  "value": "Chicago"
+                },
+                {
+                  "key": "state",
+                  "type": "text",
+                  "value": "IL"
+                },
+                {
+                  "key": "contact_phone",
+                  "type": "text",
+                  "value": "+1987654321"
+                },
+                {
+                  "key": "gender",
+                  "type": "text",
+                  "value": "MALE"
+                },
+                {
+                  "key": "about",
+                  "type": "text",
+                  "value": "Professional plumber with 5 years experience"
+                },
+                {
+                  "key": "services",
+                  "type": "text",
+                  "value": "[\"Plumbing\",\"Pipe Fitting\"]"
+                },
+                {
+                  "key": "experiences",
+                  "type": "text",
+                  "value": "[{\"company\":\"ABC Plumbing Co\",\"job_type\":\"Full Time\",\"designation\":\"Senior Plumber\",\"start_year\":\"2019\",\"end_year\":\"2023\"}]"
+                },
+                {
+                  "key": "service_areas",
+                  "type": "text",
+                  "value": "[{\"location\":\"New York, NY\",\"latitude\":\"40.7128\",\"longitude\":\"-74.0060\"}]"
+                },
+                {
+                  "key": "cnic_front",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true
+                },
+                {
+                  "key": "cnic_back",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true
+                },
+                {
+                  "key": "selfie",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true
                 }
-              }
+              ]
             }
           },
           "response": []
@@ -641,10 +869,6 @@
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
               {
                 "key": "Authorization",
                 "value": "Bearer {{access_token}}"
@@ -660,15 +884,72 @@
                 "create_user_profile"
               ]
             },
-            "description": "Create profile for USER type. Only call once after registration.",
+            "description": "Create USER profile (multipart). Required: contact_email + cnic_front, cnic_back, selfie (upload files). Creates identity_verification with verification_status=PENDING. Only call once after registration.",
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"address\": \"123 Main St\",\n  \"city\": \"New York\",\n  \"state\": \"NY\",\n  \"contact_phone\": \"+1234567890\",\n  \"gender\": \"MALE\",\n  \"profile_picture\": \"uploads/profile/image.jpg\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "first_name",
+                  "type": "text",
+                  "value": "John"
+                },
+                {
+                  "key": "last_name",
+                  "type": "text",
+                  "value": "Doe"
+                },
+                {
+                  "key": "address",
+                  "type": "text",
+                  "value": "123 Main St"
+                },
+                {
+                  "key": "city",
+                  "type": "text",
+                  "value": "New York"
+                },
+                {
+                  "key": "state",
+                  "type": "text",
+                  "value": "NY"
+                },
+                {
+                  "key": "contact_phone",
+                  "type": "text",
+                  "value": "+1234567890"
+                },
+                {
+                  "key": "contact_email",
+                  "type": "text",
+                  "value": "john.doe@example.com"
+                },
+                {
+                  "key": "gender",
+                  "type": "text",
+                  "value": "MALE"
+                },
+                {
+                  "key": "profile_picture",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true
+                },
+                {
+                  "key": "cnic_front",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "cnic_back",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "selfie",
+                  "type": "file",
+                  "src": ""
                 }
-              }
+              ]
             }
           },
           "response": [],
@@ -700,10 +981,6 @@
             "method": "POST",
             "header": [
               {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
                 "key": "Authorization",
                 "value": "Bearer {{access_token}}"
               }
@@ -718,15 +995,110 @@
                 "create_contractor_profile"
               ]
             },
-            "description": "Create profile for CONTRACTOR type. Only call once after registration.",
+            "description": "Create CONTRACTOR profile (multipart). Required: contact_email + cnic_front, cnic_back, selfie. Arrays as JSON strings. identity_verification created with verification_status=PENDING. Only call once after registration.",
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"Ali\",\n  \"last_name\": \"Khan\",\n  \"address\": \"456 Oak Ave\",\n  \"city\": \"Chicago\",\n  \"state\": \"IL\",\n  \"contact_phone\": \"+1987654321\",\n  \"gender\": \"MALE\",\n  \"about\": \"Professional plumber with 5 years experience\",\n  \"services\": [\n    \"Plumbing\",\n    \"Pipe Fitting\",\n    \"Water Heater\"\n  ],\n  \"experiences\": [\n    {\n      \"company\": \"ABC Plumbing Co\",\n      \"job_type\": \"Full Time\",\n      \"designation\": \"Senior Plumber\",\n      \"start_year\": \"2019\",\n      \"end_year\": \"2023\"\n    }\n  ],\n  \"service_areas\": [\n    {\n      \"location\": \"New York, NY\",\n      \"latitude\": \"40.7128\",\n      \"longitude\": \"-74.0060\"\n    },\n    {\n      \"location\": \"Brooklyn, NY\",\n      \"latitude\": \"40.6782\",\n      \"longitude\": \"-73.9442\"\n    }\n  ],\n  \"business_license\": \"uploads/docs/license.pdf\",\n  \"certifications\": [\n    \"uploads/docs/cert1.pdf\",\n    \"uploads/docs/cert2.pdf\"\n  ],\n  \"portfolio_images\": [\n    \"uploads/portfolio/img1.jpg\",\n    \"uploads/portfolio/img2.jpg\"\n  ],\n  \"profile_picture\": \"uploads/profile/contractor.jpg\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "first_name",
+                  "type": "text",
+                  "value": "Ali"
+                },
+                {
+                  "key": "last_name",
+                  "type": "text",
+                  "value": "Khan"
+                },
+                {
+                  "key": "address",
+                  "type": "text",
+                  "value": "456 Oak Ave"
+                },
+                {
+                  "key": "city",
+                  "type": "text",
+                  "value": "Chicago"
+                },
+                {
+                  "key": "state",
+                  "type": "text",
+                  "value": "IL"
+                },
+                {
+                  "key": "contact_phone",
+                  "type": "text",
+                  "value": "+1987654321"
+                },
+                {
+                  "key": "contact_email",
+                  "type": "text",
+                  "value": "ali.khan@example.com"
+                },
+                {
+                  "key": "gender",
+                  "type": "text",
+                  "value": "MALE"
+                },
+                {
+                  "key": "about",
+                  "type": "text",
+                  "value": "Professional plumber with 5 years experience"
+                },
+                {
+                  "key": "services",
+                  "type": "text",
+                  "value": "[\"Plumbing\",\"Pipe Fitting\",\"Water Heater\"]"
+                },
+                {
+                  "key": "experiences",
+                  "type": "text",
+                  "value": "[{\"company\":\"ABC Plumbing Co\",\"job_type\":\"Full Time\",\"designation\":\"Senior Plumber\",\"start_year\":\"2019\",\"end_year\":\"2023\"}]"
+                },
+                {
+                  "key": "service_areas",
+                  "type": "text",
+                  "value": "[{\"location\":\"New York, NY\",\"latitude\":\"40.7128\",\"longitude\":\"-74.0060\"},{\"location\":\"Brooklyn, NY\",\"latitude\":\"40.6782\",\"longitude\":\"-73.9442\"}]"
+                },
+                {
+                  "key": "business_license",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true
+                },
+                {
+                  "key": "certifications",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true
+                },
+                {
+                  "key": "portfolio_images",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true
+                },
+                {
+                  "key": "profile_picture",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true
+                },
+                {
+                  "key": "cnic_front",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "cnic_back",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "selfie",
+                  "type": "file",
+                  "src": ""
                 }
-              }
+              ]
             }
           },
           "response": [],
@@ -751,6 +1123,160 @@
               }
             }
           ]
+        },
+        {
+          "name": "Create USER Profile (JSON URLs)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/create_user_profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "create_user_profile"
+              ]
+            },
+            "description": "Same as Create USER Profile but using pre-uploaded URL strings (e.g. from /presigned-url) instead of multipart files. cnic_front, cnic_back, selfie required. Status = PENDING.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"address\": \"123 Main St\",\n  \"city\": \"New York\",\n  \"state\": \"NY\",\n  \"contact_phone\": \"+1234567890\",\n  \"contact_email\": \"john.doe@example.com\",\n  \"gender\": \"MALE\",\n  \"profile_picture\": \"https://cdn.example.com/uploads/profile/image.jpg\",\n  \"cnic_front\": \"https://cdn.example.com/uploads/cnic/front.jpg\",\n  \"cnic_back\": \"https://cdn.example.com/uploads/cnic/back.jpg\",\n  \"selfie\": \"https://cdn.example.com/uploads/cnic/selfie.jpg\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create CONTRACTOR Profile (JSON URLs)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/create_contractor_profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "create_contractor_profile"
+              ]
+            },
+            "description": "CONTRACTOR create using pre-uploaded URL strings. cnic_front, cnic_back, selfie required. Status = PENDING.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Ali\",\n  \"last_name\": \"Khan\",\n  \"address\": \"456 Oak Ave\",\n  \"city\": \"Chicago\",\n  \"state\": \"IL\",\n  \"contact_phone\": \"+1987654321\",\n  \"contact_email\": \"ali.khan@example.com\",\n  \"gender\": \"MALE\",\n  \"about\": \"Professional plumber with 5 years experience\",\n  \"services\": [\n    \"Plumbing\",\n    \"Pipe Fitting\",\n    \"Water Heater\"\n  ],\n  \"experiences\": [\n    {\n      \"company\": \"ABC Plumbing Co\",\n      \"job_type\": \"Full Time\",\n      \"designation\": \"Senior Plumber\",\n      \"start_year\": \"2019\",\n      \"end_year\": \"2023\"\n    }\n  ],\n  \"service_areas\": [\n    {\n      \"location\": \"New York, NY\",\n      \"latitude\": \"40.7128\",\n      \"longitude\": \"-74.0060\"\n    }\n  ],\n  \"business_license\": \"https://cdn.example.com/uploads/docs/license.pdf\",\n  \"certifications\": [\n    \"https://cdn.example.com/uploads/docs/cert1.pdf\"\n  ],\n  \"portfolio_images\": [\n    \"https://cdn.example.com/uploads/portfolio/img1.jpg\"\n  ],\n  \"profile_picture\": \"https://cdn.example.com/uploads/profile/contractor.jpg\",\n  \"cnic_front\": \"https://cdn.example.com/uploads/cnic/front.jpg\",\n  \"cnic_back\": \"https://cdn.example.com/uploads/cnic/back.jpg\",\n  \"selfie\": \"https://cdn.example.com/uploads/cnic/selfie.jpg\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Identity Docs (cnic/selfie)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "profile"
+              ]
+            },
+            "description": "Partial update: send any one of cnic_front / cnic_back / selfie. verification_status resets to PENDING. Works for USER and CONTRACTOR.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "cnic_front",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "cnic_back",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true
+                },
+                {
+                  "key": "selfie",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile Picture",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/profile_picture",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "user",
+                "profile_picture"
+              ]
+            },
+            "description": "Upload/replace only profile_picture (multipart). Field name must be profile_picture.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "profile_picture",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          },
+          "response": []
         },
         {
           "name": "Get All Users (Admin)",
@@ -858,10 +1384,10 @@
                 "update_fcm"
               ]
             },
-            "description": "Update Firebase push notification token.",
+            "description": "Update Firebase push notification token. refresh_token is read from httpOnly cookie (set cookie in Postman if needed). Body only needs fcm_token.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\",\n  \"fcm_token\": \"new_fcm_device_token_here\"\n}",
+              "raw": "{\n  \"fcm_token\": \"new_fcm_device_token_here\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

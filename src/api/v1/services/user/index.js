@@ -744,6 +744,7 @@ class UserService {
       include: {
         user_details: true,
         user_secrets: { select: { password: true } },
+        identity_verification: true,
         contractor_profile: {
           include: {
             contractor_experiences: true,
@@ -924,6 +925,62 @@ class UserService {
         }
 
       }
+
+      // Identity verification — any of cnic_front / cnic_back / selfie → PENDING
+      const storeMediaPath = (url) => {
+        if (!url) return null;
+        if (typeof url !== "string") return null;
+        if (url.includes("?")) {
+          try {
+            const parsed = new URL(url);
+            return `${parsed.origin}${parsed.pathname}`;
+          } catch {
+            return url.split("?")[0];
+          }
+        }
+        return url;
+      };
+
+      const cnic_front = storeMediaPath(data?.cnic_front);
+      const cnic_back = storeMediaPath(data?.cnic_back);
+      const selfie = storeMediaPath(data?.selfie);
+      const hasIdentityUpdate = !!(cnic_front || cnic_back || selfie);
+
+      if (hasIdentityUpdate) {
+        const existing = await tx.identity_verification.findUnique({
+          where: { user_id: id },
+        });
+
+        if (!existing) {
+          if (!cnic_front || !cnic_back || !selfie) {
+            throw responses.bad_request_response(
+              "cnic_front, cnic_back and selfie are all required for first-time identity verification."
+            );
+          }
+          await tx.identity_verification.create({
+            data: {
+              user_id: id,
+              cnic_front_url: cnic_front,
+              cnic_back_url: cnic_back,
+              selfie_url: selfie,
+              verification_status: "PENDING",
+            },
+          });
+        } else {
+          await tx.identity_verification.update({
+            where: { user_id: id },
+            data: {
+              ...(cnic_front ? { cnic_front_url: cnic_front } : {}),
+              ...(cnic_back ? { cnic_back_url: cnic_back } : {}),
+              ...(selfie ? { selfie_url: selfie } : {}),
+              verification_status: "PENDING",
+              rejection_reason: null,
+              reviewed_by: null,
+              reviewed_at: null,
+            },
+          });
+        }
+      }
     });
   };
 
@@ -988,6 +1045,12 @@ class UserService {
     const cnic_back = storeMediaPath(data?.cnic_back);
     const selfie = storeMediaPath(data?.selfie);
 
+    if (!cnic_front || !cnic_back || !selfie) {
+      throw responses.bad_request_response(
+        "cnic_front, cnic_back and selfie are required."
+      );
+    }
+
     await prisma.$transaction(async (tx) => {
       const userDetailsData = {
         first_name: data.first_name,
@@ -1005,6 +1068,17 @@ class UserService {
       await helper.create_user_details({
         data: userDetailsData,
         tx,
+      });
+
+      // Identity docs — always PENDING until admin verifies (admin flow later)
+      await tx.identity_verification.create({
+        data: {
+          user_id: user.id,
+          cnic_front_url: cnic_front,
+          cnic_back_url: cnic_back,
+          selfie_url: selfie,
+          verification_status: "PENDING",
+        },
       });
 
       if (user.user_type === "CONTRACTOR") {

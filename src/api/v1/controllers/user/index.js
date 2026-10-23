@@ -7,31 +7,6 @@ const send_email = require("@configs/email");
 const responses = new Responses();
 const service = new UserService();
 
-const mergeProfileMedia = (body, media = {}) => {
-  const existingCerts     = Array.isArray(body.certifications) ? body.certifications
-                          : typeof body.certifications === 'string' ? [body.certifications]
-                          : [];
-  const existingPortfolio = Array.isArray(body.portfolio_images) ? body.portfolio_images
-                          : typeof body.portfolio_images === 'string' ? [body.portfolio_images]
-                          : [];
-
-  const newCerts     = (media.certifications   ?? []).map((f) => f.path);
-  const newPortfolio = (media.portfolio_images ?? []).map((f) => f.path);
-
-  return {
-    ...body,
-    ...(media.profile_picture?.[0]?.path
-      ? { profile_picture: media.profile_picture[0].path }
-      : {}),
-    ...(media.business_license?.[0]?.path
-      ? { business_license: media.business_license[0].path }
-      : {}),
-    // Merge existing URL strings with newly uploaded file paths
-    certifications:   [...existingCerts,     ...newCerts],
-    portfolio_images: [...existingPortfolio, ...newPortfolio],
-  };
-};
-
 class UserController {
   register_user = async (req, res, next) => {
     try {
@@ -335,7 +310,7 @@ class UserController {
 
       await service.edit_profile({
         id: user.id,
-        data: mergeProfileMedia(req.body, req.media),
+        data: req.body,
       });
 
       const response = responses.ok_response(
@@ -364,11 +339,10 @@ class UserController {
   edit_user_profile = async (req, res, next) => {
     try {
       const { user } = req.user;
-      const profile_picture = req.media?.profile_picture?.[0]?.path || null;
 
       await service.edit_profile({
         id: user.id,
-        data: { ...req.body, ...(profile_picture && { profile_picture }) },
+        data: req.body,
       });
 
       const response = responses.ok_response(
@@ -406,7 +380,7 @@ class UserController {
 
       const data = await service.create_profile({
         user,
-        data: mergeProfileMedia(req.body, req.media),
+        data: req.body,
       });
 
       const response = responses.ok_response(

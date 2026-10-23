@@ -9,6 +9,7 @@ const verify_token_optional = require("@v1_middlewares/verify_token_optional.mid
 const verify_reset_token = require("@v1_middlewares/verify_reset_token.middleware");
 const handle_multipart_data = require("@v1_middlewares/populate_multipart_data.middleware");
 const parse_multipart_json_fields = require("@v1_middlewares/parse_multipart_json_fields.middleware");
+const merge_profile_media = require("@v1_middlewares/merge_profile_media.middleware");
 const upload_media = require("@api/v1/middlewares/upload_media.middleware");
 const UserSchema = require("@v1_validations/user");
 const UserController = require("@api/v1/controllers/user");
@@ -152,6 +153,7 @@ router.patch(
   handle_multipart_data(),
   parse_multipart_json_fields,
   upload_media,
+  merge_profile_media,
   validate_request(validations.update_profile_schema),
   controller.update_profile,
 );
@@ -163,6 +165,7 @@ router.post(
   handle_multipart_data(),
   parse_multipart_json_fields,
   upload_media,
+  merge_profile_media,
   user_type_check("USER"),
   validate_request(validations.create_user_profile_schema),
   controller.create_user_profile,
@@ -175,6 +178,7 @@ router.post(
   handle_multipart_data(),
   parse_multipart_json_fields,
   upload_media,
+  merge_profile_media,
   user_type_check("CONTRACTOR"),
   validate_request(validations.create_contractor_profile_schema),
   controller.create_user_profile,
@@ -186,6 +190,7 @@ router.patch(
   verify_token,
   handle_multipart_data(),
   upload_media,
+  merge_profile_media,
   validate_request(validations.edit_user_profile_schema),
   controller.edit_user_profile,
 );
