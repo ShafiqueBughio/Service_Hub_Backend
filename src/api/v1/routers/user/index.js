@@ -219,4 +219,35 @@ router.patch(
   controller.update_fcm_token,
 );
 
+//identity verification : for Not_submitted identity verification
+router.post(
+  "/identity_verification",
+  verify_token,
+  handle_multipart_data(),
+  parse_multipart_json_fields,
+  upload_media,
+  merge_profile_media,
+  validate_request(validations?.identity_verification),
+  controller.create_identity_verification
+)
+//get identity verification details for REJECTED (AS they can preview their submission) 
+router.get(
+  "/get_identity_verification_details",
+  verify_token,
+  validate_request(validations.get_Identity_verification_Schema),
+  controller.get_Identity_Verification
+)
+
+//update identity verification 
+router.patch(
+  "/update_identity_verification",
+  verify_token,
+  handle_multipart_data(),
+  parse_multipart_json_fields,
+  upload_media,
+  merge_profile_media,
+  validate_request(validations.update_identity_verification),
+  controller.update_identity_verification
+)
+
 module.exports = router;

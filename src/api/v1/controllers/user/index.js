@@ -524,5 +524,60 @@ class UserController {
     }
   };
 
+  //create identity verification
+  create_identity_verification = async (req,res,next)=>{
+    try {
+      const { user } = req.user;
+
+      const data = await service.create_verification({
+        user,
+        data: req.body,
+      });
+
+      const response = responses.ok_response(
+        data,
+        "Identity Verification created successfully."
+      );
+      return res.status(response.status.code).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  //get identity verification details
+   get_Identity_Verification = async (req, res,next) => {
+    try {
+      const { user } = req.user;
+
+      const { data } = await service.get_identity_verification({ id: user.id });
+
+      const response = responses.ok_response(data, "Details fetched successfully.");
+      return res.status(response.status.code).json(response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+
+  //update identity verification details
+    update_identity_verification = async (req,res,next)=>{
+    try {
+      const { user } = req.user;
+
+      const data = await service.update_identity_verification({
+        user,
+        data: req.body,
+      });
+
+      const response = responses.ok_response(
+        data,
+        "Identity Verification updated successfully."
+      );
+      return res.status(response.status.code).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+
 }
 module.exports = UserController;

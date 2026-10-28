@@ -2,6 +2,7 @@
 
 const { prisma } = require("@configs/prisma");
 const UserServiceHelpers = require("@api/v1/helpers/user_service_helper");
+const IdentityVerificationHelper = require("@api/v1/helpers/identity_verification_helper");
 const {
   formatCreateProfileResponse,
 } = require("@api/v1/helpers/format_profile_response");
@@ -10,8 +11,10 @@ const Responses = require("@constants/responses");
 const send_email = require("@configs/email");
 const Notifications = require("@api/v1/services/notifications");
 
+
 const responses = new Responses();
 const helper = new UserServiceHelpers();
+const identity_verification_helper = new IdentityVerificationHelper();
 const token_service = new TokenService(process.env.JWT_SECRET_KEY);
 const notifications = new Notifications("servicelink-auth");
 
@@ -44,11 +47,11 @@ class UserService {
 
     // If user already exists, reject registration
     if (already_user) {
-      if(!already_user.is_email_verified){
+      if (!already_user.is_email_verified) {
         throw responses.bad_request_response(
-        `Account Not Verified, Please Verify account first.`,
-        null,"ACCOUNT_NOT_VERIFIED"
-      );
+          `Account Not Verified, Please Verify account first.`,
+          null, "ACCOUNT_NOT_VERIFIED"
+        );
       }
       throw responses.bad_request_response(
         `An account with this ${identifier_type} already exists. Please login instead.`
@@ -88,13 +91,13 @@ class UserService {
     });
 
     // Send OTP email
-  if (identifier_type === "email") {
-    try {
-      await send_email({
-        from: `Service Hub <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
-        to: normalized_identifier,
-        subject: "Your OTP Code - Service Hub",
-        html: `
+    if (identifier_type === "email") {
+      try {
+        await send_email({
+          from: `Service Hub <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
+          to: normalized_identifier,
+          subject: "Your OTP Code - Service Hub",
+          html: `
           <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
             <h2 style="color: #333;">Verify Your Account</h2>
             <p style="color: #555;">
@@ -110,21 +113,21 @@ class UserService {
             </p>
           </div>
         `,
-      });
-    } catch (emailError) {
-      // rollback user if email fails
-      await prisma.users.delete({
-        where: { id: user.id },
-      });
+        });
+      } catch (emailError) {
+        // rollback user if email fails
+        await prisma.users.delete({
+          where: { id: user.id },
+        });
 
-      throw emailError;
+        throw emailError;
+      }
     }
-  }
 
     return {
       user
     };
-    
+
   };
 
   //Login User – allow login after register even if OTP not verified yet
@@ -148,10 +151,10 @@ class UserService {
       );
     }
 
-    if(!already_user?.is_email_verified) {
+    if (!already_user?.is_email_verified) {
       throw responses.bad_request_response(
         `Account Not Verified, Please Verify account first.`,
-        null,"ACCOUNT_NOT_VERIFIED"
+        null, "ACCOUNT_NOT_VERIFIED"
       );
     }
 
@@ -287,14 +290,14 @@ class UserService {
       _exp,
       id: already_user.user_secrets.id,
     });
-        // Send OTP email
-  if (identifier_type === "email") {
-    try {
-      await send_email({
-        from: `Service Hub <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
-        to: already_user.email,
-        subject: "Password Reset OTP - Service Hub",
-        html: `
+    // Send OTP email
+    if (identifier_type === "email") {
+      try {
+        await send_email({
+          from: `Service Hub <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
+          to: already_user.email,
+          subject: "Password Reset OTP - Service Hub",
+          html: `
           <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
             <h2 style="color: #333;">Reset Your Password</h2>
             <p style="color: #555;">
@@ -310,11 +313,11 @@ class UserService {
             </p>
           </div>
         `,
-      });
-    } catch (emailError) {
-      throw emailError;
+        });
+      } catch (emailError) {
+        throw emailError;
+      }
     }
-  }
 
     return {
       email: already_user.email,
@@ -380,7 +383,7 @@ class UserService {
     const already_user = await helper.get_already_user({
       find_user_obj: { id: user.id },
     });
-    
+
     if (!already_user) {
       throw responses.not_found_response(
         "User not found."
@@ -436,7 +439,7 @@ class UserService {
       id: already_user.user_secrets.id,
     });
 
-     // Send Change Password Notification
+    // Send Change Password Notification
     notifications.notification_handler({
       title: "Password Changed",
       message: "Your Password has been changed successfully!",
@@ -446,7 +449,7 @@ class UserService {
   };
 
   //set_password
-   set_password = async ({ user, password }) => {
+  set_password = async ({ user, password }) => {
     const already_user = await helper.get_already_user({
       find_user_obj: { id: user.id },
     });
@@ -456,7 +459,7 @@ class UserService {
       );
     }
 
-  const identifier = already_user.email || already_user.phone;
+    const identifier = already_user.email || already_user.phone;
 
     const hashed_password = await helper.hash_password({
       password,
@@ -467,7 +470,7 @@ class UserService {
       id: already_user.user_secrets.id,
     });
 
-     // Send Set Password Notification
+    // Send Set Password Notification
     notifications.notification_handler({
       title: "Set Password",
       message: "Your Password has been Set successfully!",
@@ -606,10 +609,10 @@ class UserService {
 
     // Step 4: Send new OTP via email
     if (identifier_type === "email") {
-      try { 
+      try {
         await send_email({
           from: `Service Hub <${process.env.GMAIL_ACCOUNT_EMAIL}>`,
-          to: already_user.email, 
+          to: already_user.email,
           subject: "Password Reset OTP - Service Hub",
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
@@ -631,7 +634,7 @@ class UserService {
       }
     }
 
-    return { otp }; 
+    return { otp };
   };
 
   // Social Login: existing user → login | new user → auto-register (is_email_verified = true)
@@ -744,7 +747,16 @@ class UserService {
       include: {
         user_details: true,
         user_secrets: { select: { password: true } },
-        identity_verification: true,
+        identity_verification: {
+          select: {
+            verification_status: true,
+            rejection_reason: true,
+            reviewed_by: true,
+            reviewed_at: true,
+            created_at: true,
+            updated_at: true,
+          },
+        },
         contractor_profile: {
           include: {
             contractor_experiences: true,
@@ -765,7 +777,7 @@ class UserService {
     const has_password = !!db_user.user_secrets?.password;
 
     // Remove user_secrets from the response (never expose password hash to client)
-    const { user_secrets,social_account_token, ...safe_user } = db_user;
+    const { user_secrets, social_account_token, ...safe_user } = db_user;
 
     return { db_user: { ...safe_user, has_password } };
   };
@@ -1060,7 +1072,7 @@ class UserService {
         gender: data.gender,
         address: data.address,
         contact_phone: data.contact_phone,
-        contact_email:data.contact_email,
+        contact_email: data.contact_email,
         profile_picture,
         user_id: user.id,
       };
@@ -1077,7 +1089,9 @@ class UserService {
           cnic_front_url: cnic_front,
           cnic_back_url: cnic_back,
           selfie_url: selfie,
-          verification_status: "PENDING",
+          //for now set status REJECTED for testing purpose
+          verification_status: "REJECTED",
+          // reviewed_at:"Monday"
         },
       });
 
@@ -1085,11 +1099,11 @@ class UserService {
         const documentsToCreate = [
           ...(business_license
             ? [
-                {
-                  document_type: "BUSINESS_LICENSE",
-                  document_url: business_license,
-                },
-              ]
+              {
+                document_type: "BUSINESS_LICENSE",
+                document_url: business_license,
+              },
+            ]
             : []),
           ...certifications.map((cert) => ({
             document_type: "CERTIFICATION",
@@ -1102,48 +1116,48 @@ class UserService {
           user_id: user.id,
           ...(experiences.length
             ? {
-                contractor_experiences: {
-                  create: experiences.map((exp) => ({
-                    company: exp.company || null,
-                    job_type: exp.job_type || null,
-                    designation: exp.designation || null,
-                    start_year: exp.start_year || null,
-                    end_year: exp.end_year || null,
-                  })),
-                },
-              }
+              contractor_experiences: {
+                create: experiences.map((exp) => ({
+                  company: exp.company || null,
+                  job_type: exp.job_type || null,
+                  designation: exp.designation || null,
+                  start_year: exp.start_year || null,
+                  end_year: exp.end_year || null,
+                })),
+              },
+            }
             : {}),
           ...(documentsToCreate.length
             ? { contractor_documents: { create: documentsToCreate } }
             : {}),
           ...(portfolio_images.length
             ? {
-                contractor_portfolios: {
-                  create: portfolio_images.map((img) => ({
-                    image_url: img,
-                  })),
-                },
-              }
+              contractor_portfolios: {
+                create: portfolio_images.map((img) => ({
+                  image_url: img,
+                })),
+              },
+            }
             : {}),
           ...(services.length
             ? {
-                contractor_services: {
-                  create: services.map((service) => ({
-                    service_name: String(service).trim(),
-                  })),
-                },
-              }
+              contractor_services: {
+                create: services.map((service) => ({
+                  service_name: String(service).trim(),
+                })),
+              },
+            }
             : {}),
           ...(service_areas.length
             ? {
-                contractor_service_areas: {
-                  create: service_areas.map((area) => ({
-                    location: area.location,
-                    latitude: area.latitude || null,
-                    longitude: area.longitude || null,
-                  })),
-                },
-              }
+              contractor_service_areas: {
+                create: service_areas.map((area) => ({
+                  location: area.location,
+                  latitude: area.latitude || null,
+                  longitude: area.longitude || null,
+                })),
+              },
+            }
             : {}),
         };
 
@@ -1248,6 +1262,188 @@ class UserService {
       },
     });
   };
+  //create identity verification
+  create_verification = async ({ user, data }) => {
+    // Check whether verification already exists
+    const existing = await prisma.identity_verification.findUnique({
+      where: {
+        user_id: user.id,
+      },
+      select: {
+        id: true,
+        verification_status: true,
+      },
+    });
+
+    if (existing) {
+      const status = existing.verification_status;
+
+      if (status === "REJECTED") {
+        throw responses.conflict_response(
+          "Your verification was rejected. Please use the resubmission flow."
+        );
+      }
+      //for pending,verified
+      throw responses.conflict_response(
+        `Identity verification already exists with status: ${status}.`
+      );
+    }
+
+  // Prepare documents using the helper
+  const {
+    documents,
+    missing_fields,
+  } =
+    identity_verification_helper.prepare_verification_documents(data);
+
+  if (missing_fields.length>0) {
+    console.log(missing_fields,"Missing")
+    throw responses.bad_request_response(
+      "cnic_front, cnic_back and selfie are required."
+    );
+  }
+
+  // Create verification record
+  const verification = await prisma.identity_verification.create({
+    data: {
+      user_id: user.id,
+      ...documents,
+      verification_status: "PENDING",
+      rejection_reason: null,
+      reviewed_by: null,
+      reviewed_at: null,
+    },
+    select: {
+      id: true,
+      verification_status: true,
+      rejection_reason: true,
+      reviewed_by: true,
+      reviewed_at: true,
+      created_at: true,
+      updated_at: true,
+    },
+  });
+
+    return {
+      data: verification,
+    };
+  }
+
+  //get identity verification details
+  get_identity_verification = async ({ id }) => {
+    const verification = await prisma.identity_verification.findUnique({
+      where: { user_id: id },
+      select: {
+        id: true,
+        verification_status: true,
+        rejection_reason: true,
+        cnic_front_url: true,
+        cnic_back_url: true,
+        selfie_url: true,
+         reviewed_by: true,
+        reviewed_at: true,
+      },
+    });
+
+
+    if (!verification) {
+      throw responses.not_found_response("Identity verification record not found")
+    }
+
+    if (verification.verification_status !== "REJECTED") {
+       throw responses.forbidden_response("Documents can only be retrieved for rejected verification")
+    }
+
+    // Sensitive storage URLs ko directly expose nahi karna.
+    // Frontend ko sirf protected document endpoint references milenge.
+    return {
+      data: verification,
+    }
+  }
+
+  //update identity verification details
+  update_identity_verification = async ({ user, data }) => {
+     // 1. Check whether the user's verification exists
+  const existing = await prisma.identity_verification.findUnique({
+    where: {
+      user_id: user.id,
+    },
+    select: {
+      id: true,
+      verification_status: true,
+    },
+  });
+
+  if (!existing) {
+    throw responses.not_found_response(
+      "Identity verification record not found. Please use the initial submission flow."
+    );
+  }
+
+  // 2. Only rejected verification can be resubmitted
+  if (existing.verification_status !== "REJECTED") {
+    throw responses.conflict_response(
+      `Identity verification cannot be resubmitted with status: ${existing.verification_status}.`
+    );
+  }
+
+  // 3. Normalize and validate the submitted documents
+  const {
+    documents,
+    missing_fields,
+  } =
+    identity_verification_helper.prepare_verification_documents(data);
+
+  if (missing_fields.length > 0) {
+    throw responses.bad_request_response(
+      "CNIC front, CNIC back and selfie are all required for resubmission."
+    );
+  }
+
+  // 4. Atomically update only if the status is still REJECTED
+  // This prevents a concurrent request from changing an already
+  // approved or pending verification.
+  const result = await prisma.identity_verification.updateMany({
+    where: {
+      user_id: user.id,
+      verification_status: "REJECTED",
+    },
+    data: {
+      ...documents,
+      verification_status: "PENDING",
+      rejection_reason: null,
+      reviewed_by: null,
+      reviewed_at: null,
+    },
+  });
+
+  // Status may have changed after the initial lookup
+  if (result.count === 0) {
+    throw responses.conflict_response(
+      "Verification status has changed. Please refresh and try again."
+    );
+  }
+
+  // 5. Return safe verification details (not the sensitive document URLs)
+  const verification = await prisma.identity_verification.findUnique({
+    where: {
+      user_id: user.id,
+    },
+    select: {
+      id: true,
+      verification_status: true,
+      rejection_reason: true,
+      reviewed_by: true,
+      reviewed_at: true,
+      created_at: true,
+      updated_at: true,
+    },
+  });
+
+  return {
+    data: verification,
+  };
+  }
 }
 
 module.exports = UserService;

@@ -333,6 +333,32 @@ class UserSchema {
       fcm_token: Joi.string().required(),
     }),
   });
+
+  identity_verification = Joi.object({
+    query: Joi.object({}),
+    params: Joi.object({}),
+    body:Joi.object({
+      cnic_front: Joi.string().required(),
+      cnic_back: Joi.string().required(),
+      selfie: Joi.string().required(),
+    })
+  })
+
+  get_Identity_verification_Schema  = Joi.object({
+    query: Joi.object({}),
+    params: Joi.object({}),
+    body: Joi.object({}),
+  });
+
+   update_identity_verification = Joi.object({
+    query: Joi.object({}),
+    params: Joi.object({}),
+    body:Joi.object({
+      cnic_front: Joi.string(),
+      cnic_back: Joi.string(),
+      selfie: Joi.string(),
+    })
+  })
 }
 
 module.exports = UserSchema;
