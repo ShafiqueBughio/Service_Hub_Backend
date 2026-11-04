@@ -21,6 +21,39 @@ class JobService {
       invited_contractor_id,
     } = body;
 
+
+     const current_user = await prisma.users.findFirst({
+          where: {
+            id : user_id,
+          },
+          include: {
+            identity_verification: {
+              select: {
+                verification_status: true,
+              },
+            },
+          },
+        });
+
+    if(!current_user){
+      throw responses.not_found_response(
+        "User Not Found"
+      )
+    }
+
+    if(current_user?.user_type !== "USER"){
+      throw responses.bad_request_response("Only User can post the job.")
+    }
+
+    const verification_status = current_user?.identity_verification?.verification_status;
+
+    //Identity verification check
+    // if(verification_status !== "VERIFIED"){
+    //   throw responses.bad_request_response(
+    //     "User identity verification is required to create a job"
+    //   )
+    // }
+
     const minB = Number(min_budget);
     const maxB = Number(max_budget);
     if (minB > maxB) {

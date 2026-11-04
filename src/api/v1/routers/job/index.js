@@ -5,6 +5,7 @@ const verify_token = require("@v1_middlewares/verify_token.middleware");
 const validate_request = require("@v1_middlewares/validate_request_joi.middleware");
 const JobController = require("@api/v1/controllers/job");
 const JobSchema = require("@api/v1/validations/job");
+const jobRateLimiter = require("@api/v1/middlewares/jobRateLimiter");
 
 const controller = new JobController();
 const validations = new JobSchema();
@@ -14,6 +15,7 @@ const router = express.Router();
 router.post(
   "/create",
   verify_token,
+  jobRateLimiter,
   validate_request(validations.create_job_schema),
   controller.create_job
 );

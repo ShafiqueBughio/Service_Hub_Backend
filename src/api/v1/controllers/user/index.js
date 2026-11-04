@@ -3,6 +3,7 @@
 const UserService = require("@api/v1/services/user");
 const Responses = require("@constants/responses");
 const send_email = require("@configs/email");
+const emitNotification = require("@api/v1/socket/notification/emit_notification");
 
 const responses = new Responses();
 const service = new UserService();

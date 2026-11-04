@@ -2,6 +2,7 @@ const Firebase = require("@configs/firebase/firebase.config");
 const { getFirebaseApp } = require("@configs/firebase/firebase.config");
 const { getMessaging } = require("firebase-admin/messaging");
 const { prisma } = require("@configs/prisma");
+const emitNotification = require("@api/v1/socket/notification/emit_notification");
 
 class Notifications extends Firebase {
   constructor(name) {
@@ -38,6 +39,7 @@ class Notifications extends Firebase {
     metadata = {},
     screen_name,
     fid,
+    notification_id,
   }) => {
     return {
       notification: {
@@ -45,6 +47,7 @@ class Notifications extends Firebase {
         body: message,
       },
       data: {
+        notification_id: String(notification_id),
         recipient_id: String(recipient_id),
         screen_name: screen_name ?? "",
         ...Object.fromEntries(
@@ -112,19 +115,15 @@ class Notifications extends Firebase {
   metadata = {},
   screen_name,
 }) => {
-  try {
-    return await prisma.notifications.create({
-      data: {
-        title,
-        message,
-        recipient_id,
-        metadata: JSON.stringify(metadata),
-        screen_name,
-      },
-    });
-  } catch (error) {
-    console.error("Notification save error:", error);
-  }
+   return await prisma.notifications.create({
+    data: {
+      title,
+      message,
+      recipient_id,
+      metadata: JSON.stringify(metadata),
+      screen_name,
+    },
+  });
 };
 
   // Public handler to send and save notification
@@ -137,6 +136,26 @@ class Notifications extends Firebase {
     save_to_db = true,
   }) => {
     try {
+
+      let savedNotification = null;
+
+    // 1. Save notification in database
+    if (save_to_db) {
+      savedNotification = await this.#save_notification({
+        title,
+        message,
+        recipient_id,
+        metadata,
+        screen_name,
+      });
+    }
+
+      // 2. Emit real-time notification through Socket.IO
+    if (savedNotification) {
+      emitNotification(recipient_id, savedNotification);
+    }
+
+
       const fcms = await this.#get_user_fcms({ user_id: recipient_id });
 
       const payloads = fcms
@@ -149,6 +168,7 @@ class Notifications extends Firebase {
             metadata,
             screen_name,
             fid: session.fcm_token,
+            notification_id: savedNotification?.id,
           })
         );
 
@@ -157,18 +177,10 @@ class Notifications extends Firebase {
       );
 
       console.log(promises, "notifications promises");
-
-      if (save_to_db) {
-        await this.#save_notification({
-          title,
-          message,
-          recipient_id,
-          metadata,
-          screen_name,
-        });
-      }
+      return savedNotification;
     } catch (error) {
       console.error("Notification handler error:", error);
+      return null;
     }
   };
 

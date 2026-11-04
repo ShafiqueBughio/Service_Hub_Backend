@@ -183,6 +183,15 @@ class Responses {
     data: null,
     message: error,
   });
+
+   tooMany_request_response = (error = null) => ({
+    status: {
+      code: 429,
+      success: false,
+    },
+    data: null,
+    message: error,
+  });
   
 }
 

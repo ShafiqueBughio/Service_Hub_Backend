@@ -67,6 +67,9 @@ class SocketManager {
       socket.user_id = id;
       socket.user_type = type;
 
+      // Join personal room so any controller can target this user directly
+      socket.join(`user-${id}`);
+
       console.log("Client connected:", socket.id, "user_id:", socket.user_id, "user_type:", type);
       socket.emit("authenticated", { user_id: id, user_type: type });
     } catch (error) {
