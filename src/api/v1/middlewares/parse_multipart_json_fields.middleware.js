@@ -6,9 +6,11 @@ const JSON_ARRAY_FIELDS = [
   "service_areas",
   "certifications",
   "portfolio_images",
+  "attachments",
+  "provider_preferences",
 ];
 
-/** Parse JSON-stringified array fields sent via multipart/form-data */
+/** Parse JSON-stringified array and object fields sent via multipart/form-data */
 const parse_multipart_json_fields = (req, res, next) => {
   if (!req.body) return next();
 
@@ -22,6 +24,15 @@ const parse_multipart_json_fields = (req, res, next) => {
       }
     }
   });
+
+  // location is a JSON object { loc, latitude, longitude }
+  if (typeof req.body.location === "string") {
+    try {
+      req.body.location = JSON.parse(req.body.location);
+    } catch {
+      // keep as string if parse fails
+    }
+  }
 
   next();
 };

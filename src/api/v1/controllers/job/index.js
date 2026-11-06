@@ -12,9 +12,22 @@ class JobController {
     try {
       const { user } = req.user;
 
+      // Merge uploaded files from req.media into req.body.attachments
+      const body = { ...req.body };
+      const uploadedFiles = req.media?.attachments ?? [];
+      const existingAttachments = Array.isArray(body.attachments) ? body.attachments : [];
+      const newFileAttachments = uploadedFiles.map((f) => ({
+        type: f.content_type?.startsWith('image/') ? 'image'
+            : f.content_type === 'application/pdf' ? 'pdf'
+            : f.content_type?.startsWith('video/') ? 'video'
+            : 'file',
+        url: f.path,
+      }));
+      body.attachments = [...existingAttachments, ...newFileAttachments];
+
       const job = await service.create_job({
         user_id: user.id,
-        body: req.body,
+        body,
       });
 
       const response = responses.create_success_response(
@@ -32,10 +45,23 @@ class JobController {
       const { jobId } = req.params;
       const { user } = req.user;
 
+      // Merge uploaded files from req.media into req.body.attachments
+      const body = { ...req.body };
+      const uploadedFiles = req.media?.attachments ?? [];
+      const existingAttachments = Array.isArray(body.attachments) ? body.attachments : [];
+      const newFileAttachments = uploadedFiles.map((f) => ({
+        type: f.content_type?.startsWith('image/') ? 'image'
+            : f.content_type === 'application/pdf' ? 'pdf'
+            : f.content_type?.startsWith('video/') ? 'video'
+            : 'file',
+        url: f.path,
+      }));
+      body.attachments = [...existingAttachments, ...newFileAttachments];
+
       const job = await service.update_job({
         jobId,
         user_id: user.id,
-        body: req.body,
+        body,
       });
 
       const response = responses.update_success_response(

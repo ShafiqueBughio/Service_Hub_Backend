@@ -22,26 +22,26 @@ class JobService {
     } = body;
 
 
-     const current_user = await prisma.users.findFirst({
-          where: {
-            id : user_id,
+    const current_user = await prisma.users.findFirst({
+      where: {
+        id: user_id,
+      },
+      include: {
+        identity_verification: {
+          select: {
+            verification_status: true,
           },
-          include: {
-            identity_verification: {
-              select: {
-                verification_status: true,
-              },
-            },
-          },
-        });
+        },
+      },
+    });
 
-    if(!current_user){
+    if (!current_user) {
       throw responses.not_found_response(
         "User Not Found"
       )
     }
 
-    if(current_user?.user_type !== "USER"){
+    if (current_user?.user_type !== "USER") {
       throw responses.bad_request_response("Only User can post the job.")
     }
 
@@ -90,9 +90,15 @@ class JobService {
         max_budget: maxB,
         expire_days: Number(expire_days),
         timeline: timeline ? timeline.trim() : null,
-        location: location ? location.trim() : null,
         provider_preferences: provider_preferences || [],
         attachments,
+        location: location
+          ? {
+            loc: location.loc,
+            latitude: location.latitude,
+            longitude: location.longitude,
+          }
+          : null,
         ...(invited_contractor_id ? { invited_contractor_id } : {}),
       },
     });
@@ -133,11 +139,11 @@ class JobService {
 
     const updateData = {};
     // Auto job_type on update: 2000 tak REGULAR, 2001 ya upar LIVE
-    if (max_budget !== undefined) {
+    if (job_type !== undefined) {
+      updateData.job_type = job_type;
+    } else if (max_budget !== undefined) {
       const maxB = Number(max_budget);
       updateData.job_type = maxB <= 2000 ? "REGULAR" : "LIVE";
-    } else if (job_type !== undefined) {
-      updateData.job_type = job_type;
     }
     if (title !== undefined) updateData.title = title.trim();
     if (description !== undefined) updateData.description = description.trim();
@@ -145,18 +151,24 @@ class JobService {
     if (min_budget !== undefined) updateData.min_budget = Number(min_budget);
     if (max_budget !== undefined) updateData.max_budget = Number(max_budget);
     if (timeline !== undefined) updateData.timeline = timeline.trim();
-    if (location !== undefined) updateData.location = location.trim();
+    if (location !== undefined) {
+      updateData.location = location
+        ? {
+          loc: location.loc,
+          latitude: location.latitude,
+          longitude: location.longitude,
+        }
+        : null;
+    }
     if (provider_preferences !== undefined)
       updateData.provider_preferences = provider_preferences;
     if (status !== undefined) updateData.status = status;
 
     if (clientAttachments !== undefined && Array.isArray(clientAttachments)) {
-      const existingAttachments = (job.attachments || []);
-      const newAttachments = clientAttachments.map((a) => ({
+      updateData.attachments = clientAttachments.map((a) => ({
         type: a.type || "file",
-        url: typeof a.url === "string" ? a.url : a.url,
+        url: a.url,
       }));
-      updateData.attachments = [...existingAttachments, ...newAttachments];
     }
 
     const updatedJob = await prisma.job.update({
@@ -168,8 +180,59 @@ class JobService {
   };
 
   // tab = pending | active | completed (for My Projects screen)
+  // get_my_jobs = async (user_id, query = {}) => {
+  //   const { tab } = query;
+  //   const where = { user_id };
+
+  //   if (tab === "pending") {
+  //     where.status = "OPEN";
+  //     where.is_cancelled = false;
+  //   } else if (tab === "active") {
+  //     where.status = "CLOSED";
+  //     where.accepted_bid_id = { not: null };
+  //     where.is_completed = false;
+  //     where.is_cancelled = false;
+  //   } else if (tab === "completed") {
+  //     where.is_completed = true;
+  //   } else if (tab === "cancelled") {
+  //     where.is_cancelled = true;
+  //   }
+
+  //   const jobs = await prisma.job.findMany({
+  //     where,
+  //     orderBy: { created_at: "desc" },
+  //     include: {
+  //       _count: { select: { bids: true } },
+  //       accepted_bid: {
+  //         select: {
+  //           id: true,
+  //           quote_price: true,
+  //           timeline_estimate: true,
+  //           contractor_id: true,
+  //           contractor: {
+  //             select: {
+  //               id: true,
+  //               user_details: {
+  //                 select: {
+  //                   first_name: true,
+  //                   last_name: true,
+  //                   profile_picture: true,
+  //                 },
+  //               },
+  //             },
+  //           },
+  //         },
+  //       },
+  //     },
+  //   });
+  //   return jobs;
+  // };
+
+
+  //Behaviour  = Pending: expired jobs hide, Active: Visible,Completed: visible, Cancelled: visible.
   get_my_jobs = async (user_id, query = {}) => {
     const { tab } = query;
+
     const where = { user_id };
 
     if (tab === "pending") {
@@ -186,7 +249,7 @@ class JobService {
       where.is_cancelled = true;
     }
 
-    const jobs = await prisma.job.findMany({
+    let jobs = await prisma.job.findMany({
       where,
       orderBy: { created_at: "desc" },
       include: {
@@ -213,8 +276,26 @@ class JobService {
         },
       },
     });
+
+    // Hide expired jobs only from Pending tab
+    if (tab === "pending") {
+      const now = new Date();
+
+      jobs = jobs.filter((job) => {
+        const expiryDate = new Date(job.created_at);
+
+        expiryDate.setDate(
+          expiryDate.getDate() + Number(job.expire_days)
+        );
+
+        return expiryDate > now;
+      });
+    }
+
     return jobs;
   };
+
+
 
   get_single_job = async (jobId) => {
     const job = await prisma.job.findUnique({

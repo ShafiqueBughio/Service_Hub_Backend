@@ -6,6 +6,9 @@ const validate_request = require("@v1_middlewares/validate_request_joi.middlewar
 const JobController = require("@api/v1/controllers/job");
 const JobSchema = require("@api/v1/validations/job");
 const jobRateLimiter = require("@api/v1/middlewares/jobRateLimiter");
+const parse_multipart_json_fields = require("@api/v1/middlewares/parse_multipart_json_fields.middleware");
+const upload_media = require("@api/v1/middlewares/upload_media.middleware");
+const handle_multipart_data = require("@api/v1/middlewares/populate_multipart_data.middleware");
 
 const controller = new JobController();
 const validations = new JobSchema();
@@ -16,6 +19,9 @@ router.post(
   "/create",
   verify_token,
   jobRateLimiter,
+  handle_multipart_data(),
+  parse_multipart_json_fields,
+  upload_media,
   validate_request(validations.create_job_schema),
   controller.create_job
 );
@@ -121,6 +127,9 @@ router.get(
 router.patch(
   "/:jobId",
   verify_token,
+  handle_multipart_data(),
+  parse_multipart_json_fields,
+  upload_media,
   validate_request(validations.update_job_schema),
   controller.update_job
 );

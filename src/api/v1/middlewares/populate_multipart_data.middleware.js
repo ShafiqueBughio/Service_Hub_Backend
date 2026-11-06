@@ -22,6 +22,7 @@ const fields = [
   
   { name: "post_image", maxCount: 1 },
   { name: "attachment", maxCount: 10 },
+  { name: "attachments", maxCount: 20 },
 ];
 
 const handle_multer_error = (err) => {

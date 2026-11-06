@@ -332,7 +332,7 @@ model Job {
 
   expire_days Int?
   timeline    String?
-  location    String?
+  location    Json?
 
   provider_preferences Json? // array (skills, gender, experience etc)
   attachments          Json? // images / videos / pdf (array)

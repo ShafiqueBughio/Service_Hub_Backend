@@ -20,7 +20,11 @@ class JobSchema {
       min_budget: Joi.number().min(0).required(),
       max_budget: Joi.number().min(0).required(),
       timeline: Joi.string().trim().max(500).optional(),
-      location: Joi.string().trim().max(500).optional(),
+      location: Joi.object({
+                  loc: Joi.string(),
+                  latitude: Joi.string(),
+                  longitude: Joi.string(),
+                }).optional(),
       provider_preferences: Joi.array()
         .items(Joi.string().trim().max(100))
         .min(1)
@@ -54,7 +58,11 @@ class JobSchema {
       min_budget: Joi.number().min(0).optional(),
       max_budget: Joi.number().min(0).optional(),
       timeline: Joi.string().trim().max(500).optional(),
-      location: Joi.string().trim().max(500).optional(),
+      location: Joi.object({
+                  loc: Joi.string(),
+                  latitude: Joi.string(),
+                  longitude: Joi.string(),
+                }).optional(),
       provider_preferences: Joi.array()
         .items(Joi.string().trim().max(100))
         .optional(),
