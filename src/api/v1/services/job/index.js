@@ -254,6 +254,28 @@ class JobService {
       orderBy: { created_at: "desc" },
       include: {
         _count: { select: { bids: true } },
+        bids: {
+          select: {
+            id: true,
+            quote_price: true,
+            timeline_estimate: true,
+            notes: true,
+            status: true,
+            contractor_id: true,
+            contractor: {
+              select: {
+                id: true,
+                user_details: {
+                  select: {
+                    first_name: true,
+                    last_name: true,
+                    profile_picture: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         accepted_bid: {
           select: {
             id: true,
@@ -297,7 +319,7 @@ class JobService {
 
 
 
-  get_single_job = async (jobId) => {
+  get_single_job = async (jobId, contractor_id) => {
     const job = await prisma.job.findUnique({
       where: { id: jobId },
       include: {
@@ -340,13 +362,42 @@ class JobService {
             },
           },
         },
+        bids: {
+          where: {
+            contractor_id: contractor_id,
+          },
+          orderBy: {
+            created_at: "desc",
+          },
+          take: 1,
+          include: {
+            contractor: {
+              select: {
+                id: true,
+                user_details: {
+                  select: {
+                    first_name: true,
+                    last_name: true,
+                    profile_picture: true,
+                    address: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         _count: { select: { bids: true } },
       },
     });
     if (!job) {
       throw responses.not_found_response("Job not found.");
     }
-    return job;
+    const { bids, ...jobData } = job;
+
+    return {
+      ...jobData,
+      my_bid: bids?.[0] || null,
+    };
   };
 
   mark_job_completed = async ({ jobId, user_id }) => {
@@ -402,7 +453,7 @@ class JobService {
 
   // --- Contractor: list open jobs (Latest Jobs); invited_only = pending / "Request Service" wali jobs ---
   get_jobs_list = async ({ query = {}, contractor_id } = {}) => {
-    const { search, location, job_type, limit = 20, offset = 0, invited_only } = query;
+    const { search, location, job_type, min_budget, max_budget, limit = 20, offset = 0, invited_only } = query;
     const invitedOnly = invited_only === true || invited_only === "true";
 
     // Pending / "Request Service" wali jobs: raw query use karte hain (Prisma client me field na ho to bhi chal jaye)
@@ -439,8 +490,24 @@ class JobService {
         { description: { contains: search } },
       ];
     }
-    if (location) where.location = { contains: location };
+    if (location) {
+      // location is stored as JSON { loc, latitude, longitude } in MySQL
+      // Use string_contains on the JSON path to filter by the address string
+      where.location = {
+        path: "$.loc",
+        string_contains: location,
+      };
+    }
     if (job_type) where.job_type = job_type;
+
+    // Budget range filter: jobs whose budget range overlaps with the requested range
+    // A job matches if its max_budget >= requested min AND its min_budget <= requested max
+    if (min_budget != null && min_budget !== "") {
+      where.max_budget = { gte: Number(min_budget) };
+    }
+    if (max_budget != null && max_budget !== "") {
+      where.min_budget = { ...(where.min_budget ?? {}), lte: Number(max_budget) };
+    }
 
     const jobs = await prisma.job.findMany({
       where,
@@ -472,9 +539,54 @@ class JobService {
     if (job.status !== "OPEN") {
       throw responses.bad_request_response("Job is not open for bidding.");
     }
+
+    //if job is expired so bid should not be placed on expired jobs 
+    // Check if job is expired
+    const createdAt = new Date(job.created_at).getTime();
+    const expireDays = Number(job.expire_days);
+
+    if (
+      Number.isFinite(createdAt) &&
+      Number.isFinite(expireDays) &&
+      expireDays > 0
+    ) {
+      const expiryTime = createdAt + expireDays * 24 * 60 * 60 * 1000;
+
+      if (Date.now() >= expiryTime) {
+        throw responses.bad_request_response(
+          "This job has expired. You cannot place a bid on it."
+        );
+      }
+    }
     if (job.user_id === contractor_id) {
       throw responses.bad_request_response("You cannot bid on your own job.");
     }
+
+    const current_Contractor = await prisma.users.findFirst({
+      where: {
+        id: contractor_id,
+      },
+      include: {
+        identity_verification: {
+          select: {
+            verification_status: true,
+          },
+        },
+      },
+    });
+
+    if (!current_Contractor) {
+      throw responses.not_found_response("Contractor not found.");
+    }
+
+    const verification_status = current_Contractor?.identity_verification?.verification_status
+
+    // Identity verification check : only verified contractors can bid on jobs
+    // if(verification_status !== "VERIFIED"){
+    //   throw responses.bad_request_response(
+    //     "Contractor identity verification is required to place bid on this job."
+    //   )
+    // }
 
     const { quote_price, timeline_estimate, notes, proposal_documents } = body;
     const proposalDocs = Array.isArray(proposal_documents)
@@ -504,7 +616,7 @@ class JobService {
                 select: {
                   first_name: true,
                   last_name: true,
-                  location: true,
+                  address: true,
                   profile_picture: true,
                 },
               },
@@ -562,8 +674,13 @@ class JobService {
               select: {
                 first_name: true,
                 last_name: true,
-                location: true,
+                address: true,
                 profile_picture: true,
+              },
+            },
+            identity_verification: {
+              select: {
+                verification_status: true,
               },
             },
           },

@@ -143,8 +143,9 @@ class JobController {
   get_single_job = async (req, res, next) => {
     try {
       const { jobId } = req.params;
+      const { user } = req.user;
 
-      const job = await service.get_single_job(jobId);
+      const job = await service.get_single_job(jobId,user.id);
 
       const response = responses.ok_response(
         job,
@@ -172,30 +173,101 @@ class JobController {
     }
   };
 
-  create_bid = async (req, res, next) => {
-    try {
-      const { jobId } = req.params;
-      const { user } = req.user;
-      const bid = await service.create_bid({
-        jobId,
-        contractor_id: user.id,
-        body: req.body,
-      });
-      // Real-time: notify everyone in job room (owner + contractors)
-      const io = globalThis.io;
-      if (io) {
-        const roomName = `job-room-${jobId}`;
-        io.to(roomName).emit(JobEvents.BID_RECEIVED, bid);
-      }
-      const response = responses.create_success_response(
-        bid,
-        "Bid placed successfully. You'll receive updates if your bid is accepted or outbid."
-      );
-      return res.status(response.status.code).json(response);
-    } catch (error) {
-      next(error);
+  // create_bid = async (req, res, next) => {
+
+  //   try {
+  //     const { jobId } = req.params;
+  //     const { user } = req.user;
+  //     // Merge uploaded files from req.media into req.body.attachments
+  //     const body = { ...req.body };
+  //     const uploadedFiles = req.media?.proposal_documents ?? [];
+  //     const existingAttachments = Array.isArray(body.proposal_documents) ? body.proposal_documents : [];
+  //     const newFileAttachments = uploadedFiles.map((f) => ({
+  //       type: f.content_type?.startsWith('image/') ? 'image'
+  //           : f.content_type === 'application/pdf' ? 'pdf'
+  //           : f.content_type?.startsWith('video/') ? 'video'
+  //           : 'file',
+  //       url: f.path,
+  //     }));
+  //     body.proposal_documents = [...existingAttachments, ...newFileAttachments];
+  //     const bid = await service.create_bid({
+  //       jobId,
+  //       contractor_id: user.id,
+  //       body: req.body,
+  //     });
+  //     // Real-time: notify everyone in job room (owner + contractors)
+  //     const io = globalThis.io;
+  //     if (io) {
+  //       const roomName = `job-room-${jobId}`;
+  //       io.to(roomName).emit(JobEvents.BID_RECEIVED, bid);
+  //     }
+  //     const response = responses.create_success_response(
+  //       bid,
+  //       "Bid placed successfully. You'll receive updates if your bid is accepted or outbid."
+  //     );
+  //     return res.status(response.status.code).json(response);
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // };
+
+  
+create_bid = async (req, res, next) => {
+  try {
+    const { jobId } = req.params;
+    const { user } = req.user;
+
+    const body = { ...req.body };
+
+    // Existing documents
+    const existingAttachments = Array.isArray(body.proposal_documents)
+      ? body.proposal_documents
+      : [];
+
+    // Newly uploaded documents from S3
+    const uploadedFiles = req.media?.proposal_documents ?? [];
+
+    const newFileAttachments = uploadedFiles.map((f) => ({
+      type: f.content_type?.startsWith("image/")
+        ? "image"
+        : f.content_type === "application/pdf"
+        ? "pdf"
+        : f.content_type?.startsWith("video/")
+        ? "video"
+        : "file",
+      url: f.path,
+    }));
+
+    // Merge existing + newly uploaded documents
+    body.proposal_documents = [
+      ...existingAttachments,
+      ...newFileAttachments,
+    ];
+
+    const bid = await service.create_bid({
+      jobId,
+      contractor_id: user.id,
+      body, // IMPORTANT: req.body ki jagah body pass karna hai
+    });
+
+    // Real-time notification
+    const io = globalThis.io;
+
+    if (io) {
+      const roomName = `job-room-${jobId}`;
+      io.to(roomName).emit(JobEvents.BID_RECEIVED, bid);
     }
-  };
+
+    const response = responses.create_success_response(
+      bid,
+      "Bid placed successfully. You'll receive updates if your bid is accepted or outbid."
+    );
+
+    return res.status(response.status.code).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
 
   get_bids_by_job = async (req, res, next) => {
     try {

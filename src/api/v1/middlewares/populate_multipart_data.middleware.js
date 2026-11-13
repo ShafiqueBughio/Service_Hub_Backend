@@ -23,6 +23,7 @@ const fields = [
   { name: "post_image", maxCount: 1 },
   { name: "attachment", maxCount: 10 },
   { name: "attachments", maxCount: 20 },
+   { name: "proposal_documents", maxCount: 20 },
 ];
 
 const handle_multer_error = (err) => {

@@ -71,6 +71,9 @@ router.get(
 router.post(
   "/:jobId/bid",
   verify_token,
+  handle_multipart_data(),
+  parse_multipart_json_fields,
+  upload_media,
   validate_request(validations.create_bid_schema),
   controller.create_bid
 );

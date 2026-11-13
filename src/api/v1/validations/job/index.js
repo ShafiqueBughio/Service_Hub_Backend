@@ -127,6 +127,8 @@ class JobSchema {
       search: Joi.string().trim().max(255).optional(),
       location: Joi.string().trim().max(255).optional(),
       job_type: Joi.string().valid(...JOB_TYPES).optional(),
+      min_budget: Joi.number().min(0).optional(),
+      max_budget: Joi.number().min(0).optional(),
       limit: Joi.number().integer().min(1).max(100).optional(),
       offset: Joi.number().integer().min(0).optional(),
       invited_only: Joi.boolean().optional(), // true = sirf jobs jahan user ko invite kiya (pending / requests for me)

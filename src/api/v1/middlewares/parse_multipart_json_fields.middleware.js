@@ -8,6 +8,7 @@ const JSON_ARRAY_FIELDS = [
   "portfolio_images",
   "attachments",
   "provider_preferences",
+  "proposal_documents"
 ];
 
 /** Parse JSON-stringified array and object fields sent via multipart/form-data */
